@@ -77,8 +77,9 @@ react in any way: no panic, no running from fire, no revenge.
 
 ## Invulnerable enemies
 
-Off by default. The same as Invulnerable animals, for hostile mobs: they never
-take damage and don't react to fire. Zombies and skeletons burn in daylight
+Off by default. The same as Invulnerable animals, for enemies: all hostile
+mobs plus the neutral mobs that are not animals (enderman, piglin, zombified
+piglin, iron golem). They never take damage and don't react to fire. Zombies and skeletons burn in daylight
 without seeking shade, and witches don't drink fire resistance.
 
 - An invulnerable creeper never explodes, not even when lit with flint and

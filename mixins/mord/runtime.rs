@@ -207,7 +207,13 @@ pub fn ticking() -> Option<Ticking> {
 /// Whether mob type `kind` is invulnerable with the current settings.
 pub fn invulnerable(kind: &str) -> bool {
     (INVULNERABLE_ANIMALS.on() && is_animal(kind))
-        || (INVULNERABLE_ENEMIES.on() && is_hostile(kind))
+        || (INVULNERABLE_ENEMIES.on() && is_enemy_for_invulnerability(kind))
+}
+
+/// Invulnerable enemies covers the hostile mobs and the neutral mobs that are
+/// not animals (enderman, piglin, zombified piglin, iron golem).
+pub fn is_enemy_for_invulnerability(kind: &str) -> bool {
+    is_hostile(kind) || (is_neutral(kind) && !is_animal(kind))
 }
 
 thread_local! {
@@ -284,7 +290,10 @@ mod tests {
         assert!(!refuse_damage(11, "minecraft:zombie", false));
         INVULNERABLE_ENEMIES.set(true);
         assert!(refuse_damage(11, "minecraft:zombie", false));
+        assert!(refuse_damage(13, "minecraft:zombified_piglin", false));
+        assert!(refuse_damage(14, "minecraft:iron_golem", false));
         INVULNERABLE_ANIMALS.set(false);
+        assert!(!refuse_damage(15, "minecraft:wolf", false));
         assert!(!refuse_damage(10, "minecraft:cow", false));
         assert!(!protected_id(10));
         assert!(protected_id(11));
