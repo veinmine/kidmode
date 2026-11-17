@@ -11,8 +11,8 @@ use std::sync::atomic::{AtomicBool, Ordering};
 /// The mod's id (its settings folder), name and version, as Options > Mods shows them.
 pub const ID: &str = "mord";
 pub const NAME: &str = "Mord";
-pub const VERSION: &str = "0.3.0";
-pub const DESCRIPTION: &str = "Friendly and invulnerable mobs.";
+pub const VERSION: &str = "0.4.0";
+pub const DESCRIPTION: &str = "Friendly and invulnerable mobs. Features: docs/features.md.";
 
 // ---------------------------------------------------------------------------
 // Settings
@@ -62,14 +62,21 @@ pub fn stored(on: bool) -> &'static str {
 pub static FRIENDLY_ENEMIES: Setting = Setting::new("friendly_enemies", "Friendly enemies", true);
 pub static FRIENDLY_NEUTRAL: Setting =
     Setting::new("friendly_neutral_mobs", "Friendly neutral mobs", true);
+pub static FRIENDLY_FIGHT_MOBS: Setting =
+    Setting::new("friendly_mobs_fight_mobs", "Friendly mobs fight other mobs", false);
 pub static INVULNERABLE_ANIMALS: Setting =
     Setting::new("invulnerable_animals", "Invulnerable animals", true);
 pub static INVULNERABLE_ENEMIES: Setting =
     Setting::new("invulnerable_enemies", "Invulnerable enemies", false);
 
 /// The settings page, in order: button `i` toggles `SETTINGS[i]`.
-pub static SETTINGS: [&Setting; 4] =
-    [&FRIENDLY_ENEMIES, &FRIENDLY_NEUTRAL, &INVULNERABLE_ANIMALS, &INVULNERABLE_ENEMIES];
+pub static SETTINGS: [&Setting; 5] = [
+    &FRIENDLY_ENEMIES,
+    &FRIENDLY_NEUTRAL,
+    &FRIENDLY_FIGHT_MOBS,
+    &INVULNERABLE_ANIMALS,
+    &INVULNERABLE_ENEMIES,
+];
 
 static LOADED: AtomicBool = AtomicBool::new(false);
 
@@ -148,20 +155,45 @@ pub const HARMFUL_EFFECTS: &[&str] = &[
     "minecraft:weakness", "minecraft:wither",
 ];
 
-thread_local! {
-    /// Where each ticking mob's events start (`Mob::tick` HEAD), per thread:
-    /// mobs tick on several threads.
-    static TICK_STARTS: std::cell::RefCell<Vec<usize>> = const { std::cell::RefCell::new(Vec::new()) };
+/// Whether a friendly mob of type `kind` may not attack other mobs either.
+pub fn spares_mobs(kind: &str) -> bool {
+    !FRIENDLY_FIGHT_MOBS.on() && friendly_to_players(kind)
 }
 
-/// A mob's tick starts with `events.len()` events already queued.
-pub fn tick_start(len: usize) {
-    TICK_STARTS.with(|s| s.borrow_mut().push(len));
+/// The mob whose tick is running on this thread, as `Mob::tick` started it.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct Ticking {
+    /// Where its events start in the tick's event list.
+    pub from: usize,
+    pub friendly: bool,
+    pub spares_mobs: bool,
+    pub invulnerable: bool,
+}
+
+thread_local! {
+    /// The ticking mobs, innermost last, per thread: mobs tick on several threads.
+    static TICKING: std::cell::RefCell<Vec<Ticking>> = const { std::cell::RefCell::new(Vec::new()) };
+}
+
+/// Mob type `kind` starts its tick with `len` events already queued.
+pub fn tick_start(kind: &str, len: usize) {
+    let t = Ticking {
+        from: len,
+        friendly: friendly_to_players(kind),
+        spares_mobs: spares_mobs(kind),
+        invulnerable: invulnerable(kind),
+    };
+    TICKING.with(|s| s.borrow_mut().push(t));
 }
 
 /// The matching start, when the tick ends.
-pub fn tick_end() -> Option<usize> {
-    TICK_STARTS.with(|s| s.borrow_mut().pop())
+pub fn tick_end() -> Option<Ticking> {
+    TICKING.with(|s| s.borrow_mut().pop())
+}
+
+/// The mob ticking on this thread, if any.
+pub fn ticking() -> Option<Ticking> {
+    TICKING.with(|s| s.borrow().last().copied())
 }
 
 // ---------------------------------------------------------------------------
@@ -176,6 +208,19 @@ pub fn tick_end() -> Option<usize> {
 pub fn invulnerable(kind: &str) -> bool {
     (INVULNERABLE_ANIMALS.on() && is_animal(kind))
         || (INVULNERABLE_ENEMIES.on() && is_hostile(kind))
+}
+
+thread_local! {
+    /// A witch's fire, hidden while it picks a potion (`witch::drink`).
+    static HIDDEN_FIRE: std::cell::Cell<i32> = const { std::cell::Cell::new(0) };
+}
+
+pub fn stash_fire(ticks: i32) {
+    HIDDEN_FIRE.with(|f| f.set(ticks));
+}
+
+pub fn unstash_fire() -> i32 {
+    HIDDEN_FIRE.with(|f| f.replace(0))
 }
 
 /// Invulnerable mobs that refused a hit, by id, for the explosion push (which
@@ -216,14 +261,19 @@ mod tests {
     // The settings are global, so the tests that change them run in one test.
     #[test]
     fn behaviour_follows_the_settings() {
-        assert!(FRIENDLY_ENEMIES.default && FRIENDLY_NEUTRAL.default);
+        assert!(FRIENDLY_ENEMIES.default && FRIENDLY_NEUTRAL.default && !FRIENDLY_FIGHT_MOBS.default);
         assert!(INVULNERABLE_ANIMALS.default && !INVULNERABLE_ENEMIES.default);
 
         assert!(friendly_to_players("minecraft:skeleton"));
         assert!(friendly_to_players("minecraft:zombified_piglin"));
         assert!(!friendly_to_players("minecraft:cow"));
+        assert!(spares_mobs("minecraft:iron_golem"));
+        FRIENDLY_FIGHT_MOBS.set(true);
+        assert!(!spares_mobs("minecraft:iron_golem"));
+        FRIENDLY_FIGHT_MOBS.set(false);
         FRIENDLY_NEUTRAL.set(false);
         assert!(!friendly_to_players("minecraft:zombified_piglin"));
+        assert!(!spares_mobs("minecraft:iron_golem"));
         assert!(friendly_to_players("minecraft:creeper"));
         FRIENDLY_ENEMIES.set(false);
         assert!(!friendly_to_players("minecraft:creeper"));
@@ -243,11 +293,13 @@ mod tests {
 
     #[test]
     fn tick_starts_nest() {
-        tick_start(3);
-        tick_start(5);
-        assert_eq!(tick_end(), Some(5));
-        assert_eq!(tick_end(), Some(3));
+        tick_start("minecraft:cow", 3);
+        tick_start("minecraft:pig", 5);
+        assert_eq!(ticking().map(|t| t.from), Some(5));
+        assert_eq!(tick_end().map(|t| t.from), Some(5));
+        assert_eq!(tick_end().map(|t| t.from), Some(3));
         assert_eq!(tick_end(), None);
+        assert_eq!(ticking(), None);
     }
 
     #[test]

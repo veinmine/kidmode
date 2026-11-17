@@ -1,4 +1,4 @@
-// A mob's tick starts: note where its events begin.
-fn mord_tick_start(events: &Vec<crate::mobs::MobEvent>) {
-    crate::mobs::mord::tick_start(events.len());
+// A mob's tick starts: note which mob it is and where its events begin.
+fn mord_tick_start(m: &crate::mobs::Mob, events: &Vec<crate::mobs::MobEvent>) {
+    crate::mobs::mord::tick_start(&m.kind.id, events.len());
 }

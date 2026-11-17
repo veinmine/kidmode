@@ -1,6 +1,6 @@
 [mod]
 id = "mord"
-version = "0.3.0"
+version = "0.4.0"
 priority = 100
 
 # The commit it was built and tested on (Nightly 2026-11-13). Besides the native
@@ -81,6 +81,7 @@ kind = "HEAD"
 target = "horizon_client_lib::mobs::Mob::tick"
 helper = "tick_start.rs"
 bindings = [
+  { name = "m", ty = "&crate::mobs::Mob", value = "&*self" },
   { name = "events", ty = "&Vec<crate::mobs::MobEvent>", value = "&*events" },
 ]
 
@@ -91,9 +92,68 @@ target = "horizon_client_lib::mobs::Mob::tick"
 helper = "tick_end.rs"
 bindings = [
   { name = "value", ty = "bool", value = "$value" },
-  { name = "m", ty = "&crate::mobs::Mob", value = "&*self" },
+  { name = "m", ty = "&mut crate::mobs::Mob", value = "&mut *self" },
   { name = "events", ty = "&mut Vec<crate::mobs::MobEvent>", value = "&mut *events" },
 ]
+
+# Unless friendly mobs may fight: no mob as a target, no revenge on one.
+[[injection]]
+id = "spares-target"
+kind = "RETURN"
+target = "horizon_client_lib::mobs::goals::Mob::spares_target"
+helper = "spares_target.rs"
+bindings = [
+  { name = "value", ty = "bool", value = "$value" },
+  { name = "m", ty = "&crate::mobs::Mob", value = "self" },
+  { name = "who", ty = "crate::mobs::Who", value = "who" },
+]
+
+[[injection]]
+id = "nearest-target"
+kind = "RETURN"
+target = "horizon_client_lib::mobs::goals::<NearestTarget as Goal>::can_use"
+helper = "nearest_target.rs"
+bindings = [
+  { name = "value", ty = "bool", value = "$value" },
+  { name = "m", ty = "&crate::mobs::Mob", value = "&*m" },
+  { name = "goal", ty = "&NearestTarget", value = "&*self" },
+]
+
+# Bosses: the wither's heads and the ender dragon (not a mob of the engine).
+[[injection]]
+id = "wither-target"
+kind = "RETURN"
+target = "horizon_client_lib::mobs::wither::target_pos"
+helper = "wither_target.rs"
+bindings = [
+  { name = "value", ty = "Option<([f64; 3], f64, bool)>", value = "$value" },
+  { name = "id", ty = "i32", value = "id" },
+]
+
+[[injection]]
+id = "dragon-players"
+kind = "RETURN"
+target = "horizon_client::game::dragon::Game<'_>::fight_players"
+helper = "dragon_players.rs"
+bindings = [
+  { name = "value", ty = "Vec<FightPlayer>", value = "$value" },
+]
+
+[[injection]]
+id = "dragon-hurts-player"
+kind = "HEAD"
+cancellable = true
+target = "horizon_client::game::dragon::Game<'_>::dragon_hurts_player"
+helper = "dragon_no_hit.rs"
+bindings = []
+
+[[injection]]
+id = "dragon-wing"
+kind = "HEAD"
+cancellable = true
+target = "horizon_client::game::dragon::Game<'_>::dragon_wing_knock_back"
+helper = "dragon_no_hit.rs"
+bindings = []
 
 # ---- Invulnerable animals / Invulnerable enemies -------------------------
 
@@ -148,6 +208,46 @@ helper = "no_panic.rs"
 bindings = [
   { name = "value", ty = "bool", value = "$value" },
   { name = "m", ty = "&crate::mobs::Mob", value = "m" },
+]
+
+# An invulnerable creeper never explodes, even lit.
+[[injection]]
+id = "creeper"
+kind = "HEAD"
+target = "horizon_client_lib::mobs::hostile::creeper_tick"
+helper = "creeper.rs"
+bindings = [
+  { name = "m", ty = "&mut crate::mobs::Mob", value = "&mut *m" },
+]
+
+# No reaction to burning: no hiding from the sun, no fire resistance potion.
+[[injection]]
+id = "flee-sun"
+kind = "HEAD"
+cancellable = true
+target = "horizon_client_lib::mobs::goals::<FleeSun as Goal>::can_use"
+helper = "flee_sun.rs"
+bindings = [
+  { name = "m", ty = "&crate::mobs::Mob", value = "&*m" },
+]
+
+[[injection]]
+id = "witch-fire"
+kind = "HEAD"
+target = "horizon_client_lib::mobs::witch::drink"
+helper = "witch_fire.rs"
+bindings = [
+  { name = "m", ty = "&mut crate::mobs::Mob", value = "&mut *m" },
+]
+
+[[injection]]
+id = "witch-fire-back"
+kind = "RETURN"
+target = "horizon_client_lib::mobs::witch::drink"
+helper = "witch_fire_back.rs"
+bindings = [
+  { name = "value", ty = "()", value = "$value" },
+  { name = "m", ty = "&mut crate::mobs::Mob", value = "&mut *m" },
 ]
 
 # Explosions don't push them.

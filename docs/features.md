@@ -9,15 +9,19 @@ dedicated server the server's own copies of these files decide.
 |---|---|---|
 | [Friendly enemies](#friendly-enemies) | Friendly enemies (`friendly_enemies`) | ON |
 | [Friendly neutral mobs](#friendly-neutral-mobs) | Friendly neutral mobs (`friendly_neutral_mobs`) | ON |
+| [Friendly mobs fight other mobs](#friendly-mobs-fight-other-mobs) | Friendly mobs fight other mobs (`friendly_mobs_fight_mobs`) | OFF |
 | [Invulnerable animals](#invulnerable-animals) | Invulnerable animals (`invulnerable_animals`) | ON |
 | [Invulnerable enemies](#invulnerable-enemies) | Invulnerable enemies (`invulnerable_enemies`) | OFF |
 
-Mob groups are vanilla mobs only; mobs from other mods are not affected yet.
-The lists are `HOSTILE`, `NEUTRAL` and `ANIMALS` in `mixins/mord/runtime.rs`.
+## Mob groups
+
+Vanilla mobs only; mobs from other mods are not affected yet. The lists are
+`HOSTILE`, `NEUTRAL` and `ANIMALS` in `mixins/mord/runtime.rs`.
 
 - **Enemies (hostile):** zombies, skeletons, creepers, spiders, witches,
-  illagers, slimes, phantoms, guardians, the Warden, the Wither, the Ender
-  Dragon and the rest of vanilla's hostile mobs.
+  illagers, slimes, phantoms, guardians and the rest of vanilla's hostile
+  mobs, including the bosses: the Warden, the Elder Guardian, the Wither and
+  the Ender Dragon.
 - **Neutral:** bee, dolphin, enderman, goat, iron golem, llama, panda, piglin,
   polar bear, trader llama, wolf, zombified piglin.
 - **Animals:** vanilla's passive and neutral creatures, on land and in water
@@ -26,32 +30,52 @@ The lists are `HOSTILE`, `NEUTRAL` and `ANIMALS` in `mixins/mord/runtime.rs`.
 
 ## Friendly enemies
 
-Hostile mobs become passive towards players: they never target or attack you,
-even after you hit them first. You can still attack and kill them.
+Hostile mobs are passive towards players. They never target you, chase you or
+attack you, and they don't strike back when you hit them. You can still attack
+and kill them.
 
-- A mob already chasing you when you turn it on may keep following, but its
-  hits are cancelled.
+How it works: the mob engine's "can this mob attack a player?" check
+(vanilla's `canAttack`) says no for them, so they never pick you as a target,
+take no revenge, and drop a target they already had. Creepers never fuse
+because they never target you. As a backup, any hit, sting, harmful effect,
+contact damage (slimes), sonic boom or curse that a friendly mob's tick aims
+at you is dropped.
+
+Bosses: the Warden and Elder Guardian follow the same rules. The Wither's
+heads never pick you. The Ender Dragon treats you like a creative player:
+no charging, no breath, no wing hits or pushes.
 
 ## Friendly neutral mobs
 
-The same as Friendly enemies, for neutral mobs: angering an enderman, hitting a
-wolf or a zombified piglin, or taking from a bee's nest makes none of them
-attack you.
+The same as Friendly enemies, for neutral mobs: hitting a wolf or a zombified
+piglin, looking at an enderman or taking honey makes none of them attack you.
+
+## Friendly mobs fight other mobs
+
+Off by default: friendly mobs (the hostile and neutral mobs made friendly by
+the two settings above) attack no other mob either. Iron golems leave zombies
+alone, wolves ignore skeletons, and zombies ignore villagers. Turn it on to let
+friendly mobs fight each other and other mobs as usual. Mobs that are not
+friendly keep fighting whatever they normally fight.
 
 ## Invulnerable animals
 
-Animals take no damage from anything: attacks, fire, lava, falling, drowning,
-explosions. A hit on them is cancelled entirely, so they show no hurt flash,
-are not knocked back, don't panic or strike back, and drop nothing.
+Animals never take damage: attacks, fire, lava, falling, drowning, explosions.
+The hit is refused at its very start, as with vanilla's `Invulnerable` tag, so
+there is no hurt flash, no knockback and no attacker to remember. They don't
+react in any way: no panic, no running from fire, no revenge.
 
-- They can still catch fire; the fire just doesn't hurt them.
-- Known limit: vanilla's panic behaviour also makes an animal run while it is
-  on fire (not only when hurt), and no hook point turns that off, so a burning
-  animal still runs until the fire goes out.
+- They can still be on fire; it just doesn't hurt them.
+- Explosions don't push them. Players, other mobs and flowing water still can.
 - `/kill` and falling out of the world still remove them.
 
 ## Invulnerable enemies
 
-The same as Invulnerable animals, for hostile mobs: they never take damage, so
-zombies and skeletons survive daylight and can't be killed by hits, lava or
-explosions. Off by default.
+Off by default. The same as Invulnerable animals, for hostile mobs: they never
+take damage and don't react to fire. Zombies and skeletons burn in daylight
+without seeking shade, and witches don't drink fire resistance.
+
+- An invulnerable creeper never explodes, not even when lit with flint and
+  steel.
+- The Ender Dragon is not covered (it is not a mob of the engine): it can still
+  be killed.
