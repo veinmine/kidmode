@@ -7,6 +7,7 @@
   "horizon_mixins_revision": "e8cd0aa38cffef49cb2e088ef716baa107148c02",
   "mixin_schema": 6,
   "source_sha256": {
+    "crates/horizon-client/src/game.rs": "ad235ca7b9fb4170d246b9f1f5dc5ed8608168b64d57ff0040d0111a686ce81d",
     "crates/horizon-client/src/game/creatures.rs": "e276aab6cdbc245c8840a3b43dfb966dd1b1e69707f39dd1c2fd1442d917358e",
     "crates/horizon-client/src/game/dragon.rs": "bd1ec0e7e76701f31e4080b380b6d58a4aee887cf7b50d7188b1744dbe627bc6",
     "crates/horizon-client/src/game/item_durability.rs": "09057717874b509f168bd267cf67086cd8d5dec8ff3c41c68615b9f06cfdec61",

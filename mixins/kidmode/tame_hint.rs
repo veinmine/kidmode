@@ -19,6 +19,12 @@ fn kidmode_tame_hint(
         trusting: m.extra.trusting,
         angry: m.extra.anger > 0,
         baby: m.is_baby(),
+        // What the server synced (on LAN, a server, and single player alike).
+        synced_tamed: game.remote.as_ref().is_some_and(|r| {
+            r.attachments
+                .get(&horizon_client::mod_api::Holder::Entity(mob.id))
+                .is_some_and(|a| a.has(&crate::game::kidmode_sync::TAMED))
+        }),
     };
     let Some(hint) = k::hint(mob.kind, mob.id, state) else { return };
     let Some((eye, dir)) = game.aim() else { return };

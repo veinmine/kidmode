@@ -1,6 +1,6 @@
 [mod]
 id = "kidmode"
-version = "0.8.2"
+version = "0.9.0"
 priority = 100
 
 # The commit it was built and tested on (Nightly 2026-11-13). Besides the native
@@ -17,6 +17,15 @@ file = "crates/horizon-client/src/mobs.rs"
 name = "kidmode"
 visibility = "pub"
 source = "runtime.rs"
+
+# What the server sends players about the mod's mobs (synced attachments),
+# as crate::game::kidmode_sync.
+[[module]]
+id = "sync"
+file = "crates/horizon-client/src/game.rs"
+name = "kidmode_sync"
+visibility = "pub"
+source = "sync.rs"
 
 # ---- Options > Mods ------------------------------------------------------
 

@@ -11,7 +11,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 /// The mod's id (its settings folder) and version. Its name and description
 /// are translated: the `kidmode.name` and `kidmode.description` keys below.
 pub const ID: &str = "kidmode";
-pub const VERSION: &str = "0.8.2";
+pub const VERSION: &str = "0.9.0";
 
 // ---------------------------------------------------------------------------
 // Translations
@@ -883,6 +883,8 @@ pub struct TameState {
     /// An angry wolf can't be tamed.
     pub angry: bool,
     pub baby: bool,
+    /// The server says the mod tamed it (its synced `kidmode:tamed`).
+    pub synced_tamed: bool,
 }
 
 /// What a mob's bubble shows.
@@ -922,7 +924,7 @@ pub fn hint(kind: &str, id: u32, state: TameState) -> Option<Hint> {
         return None;
     }
     let entry = tameable(kind)?;
-    Some(if tamed(id) {
+    Some(if state.synced_tamed || tamed(id) {
         Hint::Tamed
     } else {
         Hint::Items(entry.food)
@@ -1268,6 +1270,11 @@ mod tests {
         set_tamed(600, true, |_| 0);
         assert_eq!(hint("minecraft:enderman", 600, wild), Some(Hint::Tamed));
         set_tamed(600, false, |_| 0);
+        let synced = TameState {
+            synced_tamed: true,
+            ..wild
+        };
+        assert_eq!(hint("minecraft:enderman", 600, synced), Some(Hint::Tamed));
         assert_eq!(hint("minecraft:villager", 600, wild), None);
 
         let items = ["cod", "salmon"];

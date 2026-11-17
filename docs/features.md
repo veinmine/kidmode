@@ -202,9 +202,8 @@ it reads at night too. The item is flattened onto the bubble, so it stays
 inside it from any angle, and drawn without the world's shading, in its
 inventory colours. The bubble sits above a mob's name when it has one.
 
-Single player runs through the game's own local server in the same program,
-so the screen side reads the tamed mobs the server noted. On LAN or a server
-another player's game doesn't get the `kidmode_tamed` tag, so a Kid Mode mob
-tamed there shows its item instead of the heart for them. Vanilla's tamed
-state is sent to everyone. The lists are `VANILLA_TAMEABLE` and `TAMEABLE` in
+Every player sees the heart, on LAN and on servers too: the server sends each
+player's game a synced attachment, `kidmode:tamed`, on every mob the mod
+tamed (the `kidmode_tamed` tag itself isn't sent to players). Vanilla's tamed
+state is sent the usual way. The lists are `VANILLA_TAMEABLE` and `TAMEABLE` in
 `mixins/kidmode/runtime.rs`, the drawing is `mixins/kidmode/tame_hint.rs`.

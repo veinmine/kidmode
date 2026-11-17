@@ -124,7 +124,13 @@ Hook points found in Horizon's source (revision `9f42064c`):
   for cats, wolves and the like. A HEAD hook on
   `horizon_client::game::creatures::Game::tick_creatures` copies the tagged
   mobs into the runtime's `TAMED` map before each level's mobs tick, since the
-  mob engine's hooks see a mob but not its tags.
+  mob engine's hooks see a mob but not its tags. The same hook keeps the
+  synced attachment `kidmode:tamed` (`mixins/kidmode/sync.rs`) on each tagged
+  mob, so every player's game knows it is tamed: Horizon's equivalent of
+  vanilla's synched entity data, which a tamed wolf uses for its tamed flag
+  and owner. Horizon sends synced attachments only once it sees a native mod
+  loaded, which a mixin mod doesn't count as, so the hook switches the
+  sending on (`hub.sync_attachments`) and resends the tamed mobs once.
 - **Loot and sparkles:** from the mob tick hook (`tick_end.rs`), which pushes
   `MobEvent::DropItem` and particle events, with a per-mob timer like
   `egg_time`.
