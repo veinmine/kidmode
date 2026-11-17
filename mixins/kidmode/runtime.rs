@@ -11,7 +11,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 /// The mod's id (its settings folder) and version. Its name and description
 /// are translated: the `kidmode.name` and `kidmode.description` keys below.
 pub const ID: &str = "kidmode";
-pub const VERSION: &str = "0.7.0";
+pub const VERSION: &str = "0.8.0";
 
 // ---------------------------------------------------------------------------
 // Translations
@@ -53,6 +53,7 @@ pub const EN_US: &[(&str, &str)] = &[
     ("kidmode.setting.always_sunny", "Always sunny"),
     ("kidmode.setting.auto_sleep", "Auto sleep"),
     ("kidmode.setting.tame_for_loot", "Tame enemies for loot"),
+    ("kidmode.setting.taming_hints", "Taming hints"),
     ("kidmode.tamed", "Tame %s"),
     ("kidmode.tamed.feminine", "Tame %s"),
     ("options.on", "ON"),
@@ -91,6 +92,7 @@ pub const PL_PL: &[(&str, &str)] = &[
     ("kidmode.setting.always_sunny", "Zawsze słonecznie"),
     ("kidmode.setting.auto_sleep", "Automatyczny sen"),
     ("kidmode.setting.tame_for_loot", "Oswajanie wrogów"),
+    ("kidmode.setting.taming_hints", "Podpowiedzi oswajania"),
     ("kidmode.tamed", "Oswojony %s"),
     ("kidmode.tamed.feminine", "Oswojona %s"),
     ("options.on", "Wł."),
@@ -194,9 +196,10 @@ pub static INVULNERABLE_PLAYER: Setting = Setting::new("invulnerable_player", tr
 pub static ALWAYS_SUNNY: Setting = Setting::new("always_sunny", false);
 pub static AUTO_SLEEP: Setting = Setting::new("auto_sleep", false);
 pub static TAME_FOR_LOOT: Setting = Setting::new("tame_for_loot", true);
+pub static TAMING_HINTS: Setting = Setting::new("taming_hints", true);
 
 /// The settings page, in order: button `i` toggles `SETTINGS[i]`.
-pub static SETTINGS: [&Setting; 10] = [
+pub static SETTINGS: [&Setting; 11] = [
     &INVULNERABLE_PLAYER,
     &FRIENDLY_ENEMIES,
     &FRIENDLY_NEUTRAL,
@@ -207,6 +210,7 @@ pub static SETTINGS: [&Setting; 10] = [
     &ALWAYS_SUNNY,
     &AUTO_SLEEP,
     &TAME_FOR_LOOT,
+    &TAMING_HINTS,
 ];
 
 // ---------------------------------------------------------------------------
@@ -855,6 +859,177 @@ pub fn tamed_tick(id: u32, kind: &str, adult: bool, mut roll: impl FnMut(i32) ->
     out
 }
 
+// ---------------------------------------------------------------------------
+// Taming hints (docs/features.md)
+// ---------------------------------------------------------------------------
+// Looking at a mob that can be tamed and isn't yet, from up to `HINT_DISTANCE`
+// blocks, shows a thought bubble over its head with its taming item. Drawn on
+// the client, as a layer on the mob (`tame_hint.rs`).
+
+/// How far away (blocks, from the eyes) a looked-at mob shows its bubble.
+pub const HINT_DISTANCE: f64 = 8.0;
+
+/// Ticks each taming item shows for when a mob takes several (1 second).
+pub const HINT_CYCLE: i64 = 20;
+
+/// Vanilla's tameable mobs and the items that tame them (without
+/// `minecraft:`). Horses, donkeys, mules and llamas are tamed by riding them,
+/// not with an item, so they show no bubble.
+pub const VANILLA_TAMEABLE: &[(&str, &[&str])] = &[
+    ("wolf", &["bone"]),
+    ("cat", &["cod", "salmon"]),
+    ("ocelot", &["cod", "salmon"]),
+    (
+        "parrot",
+        &[
+            "wheat_seeds",
+            "melon_seeds",
+            "pumpkin_seeds",
+            "beetroot_seeds",
+            "torchflower_seeds",
+            "pitcher_pod",
+        ],
+    ),
+    ("nautilus", &["pufferfish"]),
+];
+
+/// The items that tame mob type `kind` in vanilla.
+pub fn vanilla_taming_items(kind: &str) -> Option<&'static [&'static str]> {
+    let name = kind.strip_prefix("minecraft:")?;
+    VANILLA_TAMEABLE
+        .iter()
+        .find(|(m, _)| *m == name)
+        .map(|(_, items)| *items)
+}
+
+/// Whether a mob of type `kind` may show a bubble at all: a cheap first check
+/// before looking the mob up.
+pub fn may_hint(kind: &str) -> bool {
+    TAMING_HINTS.on()
+        && (vanilla_taming_items(kind).is_some()
+            || (TAME_FOR_LOOT.on() && tameable(kind).is_some()))
+}
+
+/// What the client knows about a mob's taming.
+#[derive(Clone, Copy, Debug, Default)]
+pub struct TameState {
+    /// Vanilla's tame flag (wolves, cats, parrots, nautili).
+    pub tame: bool,
+    /// An ocelot's trust.
+    pub trusting: bool,
+    /// An angry wolf can't be tamed.
+    pub angry: bool,
+    pub baby: bool,
+    /// This window is a guest of a server (also the game's own local server
+    /// in single player): the mod's tamed tag isn't sent to it, so a mob
+    /// with a name (a tamed one is named "Tame zombie") counts as tamed.
+    pub guest: bool,
+    /// The mob has a custom name.
+    pub named: bool,
+}
+
+/// The items a bubble over mob `id` of type `kind` shows, or None when it
+/// shows none (setting off, can't be tamed, or tamed already).
+pub fn hint_items(kind: &str, id: u32, state: TameState) -> Option<&'static [&'static str]> {
+    if !TAMING_HINTS.on() {
+        return None;
+    }
+    if let Some(items) = vanilla_taming_items(kind) {
+        let untamed = match kind {
+            "minecraft:wolf" => !state.tame && !state.angry,
+            "minecraft:ocelot" => !state.trusting,
+            "minecraft:nautilus" => !state.tame && !state.baby,
+            _ => !state.tame,
+        };
+        return untamed.then_some(items);
+    }
+    if !TAME_FOR_LOOT.on() || tamed(id) || (state.guest && state.named) {
+        return None;
+    }
+    tameable(kind).map(|t| t.food)
+}
+
+/// The item shown at game time `time` (`minecraft:` id): each in turn, for
+/// `HINT_CYCLE` ticks.
+pub fn hint_item(items: &[&str], time: i64) -> String {
+    if items.is_empty() {
+        return String::new();
+    }
+    let i = (time.div_euclid(HINT_CYCLE)).rem_euclid(items.len() as i64) as usize;
+    format!("minecraft:{}", items[i])
+}
+
+/// The bubble, a pixel a character: `O` its outline, `W` its inside, `.`
+/// nothing. The cloud on top holds the item; the dots trail down to the head.
+pub const BUBBLE: [&str; 25] = [
+    "....OOOOOOOOOO....",
+    "..OOWWWWWWWWWWOO..",
+    ".OWWWWWWWWWWWWWWO.",
+    ".OWWWWWWWWWWWWWWO.",
+    "OWWWWWWWWWWWWWWWWO",
+    "OWWWWWWWWWWWWWWWWO",
+    "OWWWWWWWWWWWWWWWWO",
+    "OWWWWWWWWWWWWWWWWO",
+    "OWWWWWWWWWWWWWWWWO",
+    "OWWWWWWWWWWWWWWWWO",
+    "OWWWWWWWWWWWWWWWWO",
+    "OWWWWWWWWWWWWWWWWO",
+    ".OWWWWWWWWWWWWWWO.",
+    ".OWWWWWWWWWWWWWWO.",
+    "..OOWWWWWWWWWWOO..",
+    "....OOOOOOOOOO....",
+    "..................",
+    ".....OOOO.........",
+    "....OWWWWO........",
+    "....OWWWWO........",
+    ".....OOOO.........",
+    "..................",
+    "......OOO.........",
+    "......OWO.........",
+    "......OOO.........",
+];
+/// The bubble's width and height, in its pixels.
+pub const BUBBLE_W: usize = 18;
+pub const BUBBLE_H: usize = BUBBLE.len();
+/// Where the item's centre sits (pixels from the bubble's top left), and its size.
+pub const BUBBLE_ICON_CENTRE: [f32; 2] = [9.0, 8.0];
+pub const BUBBLE_ICON: f32 = 12.0;
+/// A bubble pixel's size in blocks: the bubble is 0.72 blocks wide.
+pub const BUBBLE_PIXEL: f32 = 0.04;
+/// Colours as the vertices take them (0xAABBGGRR): outline and inside.
+pub const BUBBLE_OUTLINE: u32 = 0xFF3A_3A3A;
+pub const BUBBLE_FILL: u32 = 0xFFFF_FFFF;
+
+/// The bubble as runs of one colour: (row, first column, column after the
+/// last, colour), rows counted from the top.
+pub fn bubble_runs() -> Vec<(usize, usize, usize, u32)> {
+    let mut runs = Vec::new();
+    for (row, line) in BUBBLE.iter().enumerate() {
+        let bytes = line.as_bytes();
+        let mut x = 0;
+        while x < bytes.len() {
+            let c = bytes[x];
+            let start = x;
+            while x < bytes.len() && bytes[x] == c {
+                x += 1;
+            }
+            let color = match c {
+                b'O' => BUBBLE_OUTLINE,
+                b'W' => BUBBLE_FILL,
+                _ => continue,
+            };
+            runs.push((row, start, x, color));
+        }
+    }
+    runs
+}
+
+/// How high over the mob's feet the bubble's bottom sits: above its head, and
+/// above its name when it has one.
+pub fn bubble_lift(height: f32, named: bool) -> f32 {
+    height + if named { 0.6 } else { 0.25 }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1066,6 +1241,73 @@ mod tests {
         queue_feedback(7, true);
         assert_eq!(take_feedback(7), Some(true));
         assert_eq!(take_feedback(7), None);
+    }
+
+    #[test]
+    fn taming_hints() {
+        assert!(TAMING_HINTS.default);
+        let wild = TameState::default();
+        assert!(may_hint("minecraft:wolf") && may_hint("minecraft:zombie"));
+        assert!(!may_hint("minecraft:horse") && !may_hint("minecraft:villager"));
+        assert_eq!(hint_items("minecraft:wolf", 1, wild), Some(&["bone"][..]));
+        let tame = TameState { tame: true, ..wild };
+        assert_eq!(hint_items("minecraft:wolf", 1, tame), None);
+        let angry = TameState {
+            angry: true,
+            ..wild
+        };
+        assert_eq!(hint_items("minecraft:wolf", 1, angry), None);
+        let trusting = TameState {
+            trusting: true,
+            ..wild
+        };
+        assert_eq!(hint_items("minecraft:ocelot", 1, trusting), None);
+        assert!(hint_items("minecraft:cat", 1, wild).is_some());
+        let baby = TameState { baby: true, ..wild };
+        assert_eq!(hint_items("minecraft:nautilus", 1, baby), None);
+        assert!(hint_items("minecraft:wolf", 1, baby).is_some());
+        assert_eq!(
+            hint_items("minecraft:enderman", 600, wild),
+            Some(&["grass_block"][..])
+        );
+        let guest = TameState {
+            guest: true,
+            ..wild
+        };
+        assert!(hint_items("minecraft:enderman", 600, guest).is_some());
+        let named_guest = TameState {
+            named: true,
+            ..guest
+        };
+        assert_eq!(hint_items("minecraft:enderman", 600, named_guest), None);
+        assert!(hint_items("minecraft:wolf", 1, named_guest).is_some());
+        set_tamed(600, true, |_| 0);
+        assert_eq!(hint_items("minecraft:enderman", 600, wild), None);
+        set_tamed(600, false, |_| 0);
+
+        let items = ["cod", "salmon"];
+        assert_eq!(hint_item(&items, 0), "minecraft:cod");
+        assert_eq!(hint_item(&items, HINT_CYCLE - 1), "minecraft:cod");
+        assert_eq!(hint_item(&items, HINT_CYCLE), "minecraft:salmon");
+        assert_eq!(hint_item(&items, 2 * HINT_CYCLE), "minecraft:cod");
+        assert_eq!(hint_item(&items, -1), "minecraft:salmon");
+        assert_eq!(hint_item(&[], 5), "");
+        for (m, items) in VANILLA_TAMEABLE {
+            assert!(!items.is_empty());
+            assert!(tameable(&format!("minecraft:{m}")).is_none(), "{m} in both");
+        }
+
+        assert!(BUBBLE.iter().all(|l| l.len() == BUBBLE_W));
+        let runs = bubble_runs();
+        assert_eq!(runs[0], (0, 4, 14, BUBBLE_OUTLINE));
+        assert!(runs.contains(&(23, 7, 8, BUBBLE_FILL)));
+        assert!(runs.iter().all(|r| r.1 < r.2 && r.2 <= BUBBLE_W));
+        assert!(bubble_lift(2.0, true) > bubble_lift(2.0, false));
+
+        TAMING_HINTS.set(false);
+        assert!(!may_hint("minecraft:wolf"));
+        assert_eq!(hint_items("minecraft:wolf", 1, wild), None);
+        TAMING_HINTS.set(true);
     }
 
     #[test]

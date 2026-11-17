@@ -1,6 +1,6 @@
 [mod]
 id = "kidmode"
-version = "0.7.0"
+version = "0.8.0"
 priority = 100
 
 # The commit it was built and tested on (Nightly 2026-11-13). Besides the native
@@ -514,4 +514,28 @@ target = "horizon_client_lib::mobs::leash::leash_offset"
 helper = "tame_lead_offset.rs"
 bindings = [
   { name = "m", ty = "&crate::mobs::Mob", value = "m" },
+]
+
+# ---- Taming hints (docs/features.md) -------------------------------------
+
+# The game hands mobs to native_mob_layer only when a mod asks for it.
+[[injection]]
+id = "tame-hint-listen"
+kind = "HEAD"
+target = "horizon_client::game::native_hooks::Game<'_>::native_player_render_listened"
+helper = "tame_hint_listen.rs"
+bindings = [
+  { name = "listened", ty = "&mut bool", value = "&mut *listened" },
+]
+
+# A thought bubble with the taming item over the looked-at mob.
+[[injection]]
+id = "tame-hint"
+kind = "HEAD"
+target = "horizon_client::game::native_hooks::Game<'_>::native_mob_layer"
+helper = "tame_hint.rs"
+bindings = [
+  { name = "game", ty = "&crate::game::Game<'_>", value = "&*self" },
+  { name = "mob", ty = "&NativeMobRender<'_>", value = "mob" },
+  { name = "draw", ty = "&mut BlockEntityDraw", value = "&mut *draw" },
 ]

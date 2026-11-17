@@ -21,6 +21,7 @@ and Polish (**Tryb dla dzieci**). The Polish terms are listed in
 | [Always sunny](#always-sunny) | Always sunny (`always_sunny`) | OFF |
 | [Auto sleep](#auto-sleep) | Auto sleep (`auto_sleep`) | OFF |
 | [Tame enemies for loot](#tame-enemies-for-loot) | Tame enemies for loot (`tame_for_loot`) | ON |
+| [Taming hints](#taming-hints) | Taming hints (`taming_hints`) | ON |
 
 ## Invulnerable player
 
@@ -176,3 +177,32 @@ With the setting off, feeding does nothing, tamed mobs stop dropping loot and
 count as untamed, and leads work as in vanilla; they keep their tag and name.
 The table is `TAMEABLE` in `mixins/kidmode/runtime.rs`; the design is in
 [taming.md](taming.md).
+
+## Taming hints
+
+On by default. Look at a mob that can be tamed and isn't yet, from up to 8
+blocks away with no block in between, and a thought bubble shows over its head
+with the item that tames it. Only the mob under the crosshair (the nearest one
+along the view) shows one, and it goes away once the mob is tamed.
+
+- **Kid Mode's tameable mobs:** the table above, while Tame enemies for loot
+  is on.
+- **Vanilla's tameable mobs:** wolf (bone), cat and ocelot (raw cod or
+  salmon), parrot (seeds: wheat, melon, pumpkin, beetroot, torchflower, or a
+  pitcher pod), nautilus (pufferfish, adults only). An angry wolf and an
+  ocelot that already trusts you show none. Horses, donkeys, mules and llamas
+  are tamed by riding them, not with an item, so they show no bubble.
+- A mob with several taming items (raw meat, flowers, fish, seeds) shows each
+  in turn, one a second.
+
+The bubble is drawn on your own screen only (a layer on the mob through
+Horizon's `native_mob_layer`), facing the camera and full bright, so it reads
+at night too. It is above a mob's name when it has one.
+
+The game shows the world through its own local server even in single player,
+and the `kidmode_tamed` tag isn't sent to the screen's side. So for Kid Mode's
+mobs a mob with a name counts as tamed (a tamed one is named "Tame zombie"):
+a mob you named with a name tag but haven't tamed shows no bubble. Vanilla's
+tamed state is sent, so wolves, cats and the rest are always right. The lists
+are `VANILLA_TAMEABLE` and `TAMEABLE` in `mixins/kidmode/runtime.rs`, the
+drawing is `mixins/kidmode/tame_hint.rs`.
