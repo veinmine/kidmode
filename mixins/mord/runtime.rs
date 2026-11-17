@@ -8,28 +8,93 @@ use std::sync::Mutex;
 
 use std::sync::atomic::{AtomicBool, Ordering};
 
-/// The mod's id (its settings folder), name and version, as Options > Mods shows them.
+/// The mod's id (its settings folder) and version. Its name and description
+/// are translated: the `mord.name` and `mord.description` keys below.
 pub const ID: &str = "mord";
-pub const NAME: &str = "Kid Mode";
-pub const VERSION: &str = "0.5.0";
-pub const DESCRIPTION: &str = "A gentler world: friendly and invulnerable mobs, an invulnerable player, sunny days and nights that pass by themselves.";
+pub const VERSION: &str = "0.6.0";
+
+// ---------------------------------------------------------------------------
+// Translations
+// ---------------------------------------------------------------------------
+
+/// Every text Options > Mods shows for the mod, by translation key, in the
+/// game's language codes. `mixins/mord/lang/<code>.json` holds the same, as
+/// vanilla-style language files (a test keeps them equal). A key a language
+/// lacks reads in English. `options.on` and `options.off` are vanilla's own
+/// keys, so the toggles read as the game's other ON/OFF buttons.
+pub const EN_US: &[(&str, &str)] = &[
+    ("mord.name", "Kid Mode"),
+    ("mord.description", "A gentler world: friendly and invulnerable mobs, an invulnerable player, sunny days and nights that pass by themselves."),
+    ("mord.setting.invulnerable_player", "Invulnerable player"),
+    ("mord.setting.friendly_enemies", "Friendly enemies"),
+    ("mord.setting.friendly_neutral_mobs", "Friendly neutral mobs"),
+    ("mord.setting.friendly_mobs_fight_mobs", "Friendly mobs fight other mobs"),
+    ("mord.setting.invulnerable_animals", "Invulnerable animals"),
+    ("mord.setting.invulnerable_enemies", "Invulnerable enemies"),
+    ("mord.setting.invulnerable_ender_dragon", "Invulnerable Ender Dragon"),
+    ("mord.setting.always_sunny", "Always sunny"),
+    ("mord.setting.auto_sleep", "Auto sleep"),
+    ("options.on", "ON"),
+    ("options.off", "OFF"),
+];
+
+/// Polish. Terms follow docs/translations/dictionary.md.
+pub const PL_PL: &[(&str, &str)] = &[
+    ("mord.name", "Tryb dla dzieci"),
+    ("mord.description", "Łagodniejszy świat: przyjazne i nieśmiertelne moby, nieśmiertelny gracz, słoneczne dni i noce, które mijają same."),
+    ("mord.setting.invulnerable_player", "Nieśmiertelny gracz"),
+    ("mord.setting.friendly_enemies", "Przyjaźni wrogowie"),
+    ("mord.setting.friendly_neutral_mobs", "Przyjazne neutralne moby"),
+    ("mord.setting.friendly_mobs_fight_mobs", "Przyjazne moby walczą z innymi mobami"),
+    ("mord.setting.invulnerable_animals", "Nieśmiertelne zwierzęta"),
+    ("mord.setting.invulnerable_enemies", "Nieśmiertelni wrogowie"),
+    ("mord.setting.invulnerable_ender_dragon", "Nieśmiertelny Smok Endu"),
+    ("mord.setting.always_sunny", "Zawsze słonecznie"),
+    ("mord.setting.auto_sleep", "Automatyczny sen"),
+    ("options.on", "Wł."),
+    ("options.off", "Wył."),
+];
+
+/// The languages the mod ships, by the game's language code.
+pub const LANGUAGES: &[(&str, &[(&str, &str)])] = &[("en_us", EN_US), ("pl_pl", PL_PL)];
+
+/// The mod's own text for `key` in language `code` (a regional variant such
+/// as `pl` reads its language's file), else English, else the key.
+pub fn own_text(code: &str, key: &str) -> String {
+    let code = code.to_ascii_lowercase();
+    let find = |table: &[(&str, &'static str)]| table.iter().find(|(k, _)| *k == key).map(|(_, v)| *v);
+    LANGUAGES
+        .iter()
+        .find(|(c, _)| *c == code || c.split('_').next() == Some(code.as_str()))
+        .and_then(|(_, table)| find(table))
+        .or_else(|| find(EN_US))
+        .unwrap_or(key)
+        .to_owned()
+}
+
+/// Text for `key` in language `code`: the game's current language first
+/// (`game`: vanilla's keys, and resource packs that add
+/// `assets/mord/lang/<code>.json`), then the mod's own.
+pub fn text(code: &str, key: &str, game: impl Fn(&str) -> Option<String>) -> String {
+    game(key).unwrap_or_else(|| own_text(code, key))
+}
 
 // ---------------------------------------------------------------------------
 // Settings
 // ---------------------------------------------------------------------------
 
 /// One on/off setting: its settings file (under
-/// `horizon-mods/.horizon-mod-data/mord/`), its label and its default.
+/// `horizon-mods/.horizon-mod-data/mord/`, which also names its label's
+/// translation key `mord.setting.<key>`) and its default.
 pub struct Setting {
     pub key: &'static str,
-    pub label: &'static str,
     pub default: bool,
     value: AtomicBool,
 }
 
 impl Setting {
-    const fn new(key: &'static str, label: &'static str, default: bool) -> Self {
-        Setting { key, label, default, value: AtomicBool::new(default) }
+    const fn new(key: &'static str, default: bool) -> Self {
+        Setting { key, default, value: AtomicBool::new(default) }
     }
 
     /// The setting as last loaded or set (its default until loaded).
@@ -50,8 +115,15 @@ impl Setting {
         }
     }
 
-    pub fn button(&self) -> String {
-        format!("{}: {}", self.label, if self.on() { "ON" } else { "OFF" })
+    /// The label's translation key.
+    pub fn label_key(&self) -> String {
+        format!("mord.setting.{}", self.key)
+    }
+
+    /// The button's label, `Label: ON`, with `tr` translating a key.
+    pub fn button(&self, tr: impl Fn(&str) -> String) -> String {
+        let state = tr(if self.on() { "options.on" } else { "options.off" });
+        format!("{}: {}", tr(&self.label_key()), state)
     }
 }
 
@@ -59,23 +131,22 @@ pub fn stored(on: bool) -> &'static str {
     if on { "true" } else { "false" }
 }
 
-pub static FRIENDLY_ENEMIES: Setting = Setting::new("friendly_enemies", "Friendly enemies", true);
-pub static FRIENDLY_NEUTRAL: Setting =
-    Setting::new("friendly_neutral_mobs", "Friendly neutral mobs", true);
+pub static FRIENDLY_ENEMIES: Setting = Setting::new("friendly_enemies", true);
+pub static FRIENDLY_NEUTRAL: Setting = Setting::new("friendly_neutral_mobs", true);
 pub static FRIENDLY_FIGHT_MOBS: Setting =
-    Setting::new("friendly_mobs_fight_mobs", "Friendly mobs fight other mobs", false);
+    Setting::new("friendly_mobs_fight_mobs", false);
 pub static INVULNERABLE_ANIMALS: Setting =
-    Setting::new("invulnerable_animals", "Invulnerable animals", true);
+    Setting::new("invulnerable_animals", true);
 pub static INVULNERABLE_ENEMIES: Setting =
-    Setting::new("invulnerable_enemies", "Invulnerable enemies", false);
+    Setting::new("invulnerable_enemies", false);
 
 pub static INVULNERABLE_DRAGON: Setting =
-    Setting::new("invulnerable_ender_dragon", "Invulnerable Ender Dragon", false);
+    Setting::new("invulnerable_ender_dragon", false);
 
 pub static INVULNERABLE_PLAYER: Setting =
-    Setting::new("invulnerable_player", "Invulnerable player", true);
-pub static ALWAYS_SUNNY: Setting = Setting::new("always_sunny", "Always sunny", false);
-pub static AUTO_SLEEP: Setting = Setting::new("auto_sleep", "Auto sleep", false);
+    Setting::new("invulnerable_player", true);
+pub static ALWAYS_SUNNY: Setting = Setting::new("always_sunny", false);
+pub static AUTO_SLEEP: Setting = Setting::new("auto_sleep", false);
 
 /// The settings page, in order: button `i` toggles `SETTINGS[i]`.
 pub static SETTINGS: [&Setting; 9] = [
@@ -377,6 +448,42 @@ mod tests {
         assert!(!INVULNERABLE_ENEMIES.read(None));
         assert!(INVULNERABLE_ENEMIES.read(Some("true".into())));
         assert_eq!(stored(true), "true");
+    }
+
+    /// `lang/<code>.json` as the mod writes it: the table in order, one key a line.
+    fn lang_file(table: &[(&str, &str)]) -> String {
+        let escape = |s: &str| s.replace('\\', "\\\\").replace('"', "\\\"");
+        let lines: Vec<String> =
+            table.iter().map(|(k, v)| format!("  \"{}\": \"{}\"", escape(k), escape(v))).collect();
+        format!("{{\n{}\n}}\n", lines.join(",\n"))
+    }
+
+    #[test]
+    fn translations_are_complete() {
+        for (code, table) in LANGUAGES {
+            let keys: Vec<&str> = table.iter().map(|(k, _)| *k).collect();
+            let english: Vec<&str> = EN_US.iter().map(|(k, _)| *k).collect();
+            assert_eq!(keys, english, "{code} has other keys than en_us, or in another order");
+            let path = format!("{}/mixins/mord/lang/{code}.json", env!("CARGO_MANIFEST_DIR"));
+            let file = std::fs::read_to_string(&path).unwrap_or_default();
+            assert_eq!(file, lang_file(table), "{path} differs from {code} in runtime.rs");
+        }
+        for s in SETTINGS {
+            assert!(EN_US.iter().any(|(k, _)| *k == s.label_key()), "{} has no label", s.key);
+        }
+    }
+
+    #[test]
+    fn texts_follow_the_language() {
+        let none = |_: &str| None;
+        assert_eq!(own_text("pl_pl", "mord.name"), "Tryb dla dzieci");
+        assert_eq!(own_text("PL_PL", "mord.name"), "Tryb dla dzieci");
+        assert_eq!(own_text("de_de", "mord.name"), "Kid Mode");
+        assert_eq!(own_text("pl_pl", "mord.nothing"), "mord.nothing");
+        assert_eq!(text("pl_pl", "options.on", |_| Some("Wł.".into())), "Wł.");
+        let tr = |k: &str| text("pl_pl", k, none);
+        assert_eq!(INVULNERABLE_PLAYER.button(tr), format!("Nieśmiertelny gracz: {}", tr(if INVULNERABLE_PLAYER.on() { "options.on" } else { "options.off" })));
+        assert_eq!(AUTO_SLEEP.label_key(), "mord.setting.auto_sleep");
     }
 
     #[test]
