@@ -1,6 +1,6 @@
 [mod]
 id = "mord"
-version = "0.5.0"
+version = "0.5.1"
 priority = 100
 
 # The commit it was built and tested on (Nightly 2026-11-13). Besides the native
@@ -393,6 +393,17 @@ kind = "HEAD"
 cancellable = true
 target = "horizon_client_lib::mobs::goals::<FleeSun as Goal>::can_use"
 helper = "flee_sun.rs"
+bindings = [
+  { name = "m", ty = "&crate::mobs::Mob", value = "&*m" },
+]
+
+# Undead that are invulnerable don't catch fire in daylight at all.
+[[injection]]
+id = "sun-burn"
+kind = "HEAD"
+cancellable = true
+target = "horizon_client_lib::mobs::ai::burn_undead"
+helper = "sun_burn.rs"
 bindings = [
   { name = "m", ty = "&crate::mobs::Mob", value = "&*m" },
 ]

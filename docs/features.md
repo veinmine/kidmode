@@ -85,6 +85,7 @@ there is no hurt flash, no knockback and no attacker to remember. They don't
 react in any way: no panic, no running from fire, no revenge.
 
 - They can still be on fire; it just doesn't hurt them.
+- Undead animals (the zombie horse) don't catch fire in daylight.
 - Explosions don't push them. Players, other mobs and flowing water still can.
 - `/kill` and falling out of the world still remove them.
 
@@ -92,8 +93,13 @@ react in any way: no panic, no running from fire, no revenge.
 
 Off by default. The same as Invulnerable animals, for enemies: all hostile
 mobs plus the neutral mobs that are not animals (enderman, piglin, zombified
-piglin, iron golem). They never take damage and don't react to fire. Zombies and skeletons burn in daylight
-without seeking shade, and witches don't drink fire resistance.
+piglin, iron golem). They never take damage and don't react to fire, and witches don't drink fire
+resistance.
+
+- Undead mobs (zombies, drowned, skeletons, strays, bogged, wither skeletons,
+  phantoms, zombie villagers, zombie nautiluses) don't catch fire in daylight
+  at all, and a helmet they wear doesn't wear down in the sun. Lava, fire
+  blocks, flaming arrows and the like can still set them alight, harmlessly.
 
 - An invulnerable creeper never explodes, not even when lit with flint and
   steel.
