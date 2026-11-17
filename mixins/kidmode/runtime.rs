@@ -11,7 +11,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 /// The mod's id (its settings folder) and version. Its name and description
 /// are translated: the `kidmode.name` and `kidmode.description` keys below.
 pub const ID: &str = "kidmode";
-pub const VERSION: &str = "0.8.1";
+pub const VERSION: &str = "0.8.2";
 
 // ---------------------------------------------------------------------------
 // Translations

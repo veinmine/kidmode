@@ -82,12 +82,15 @@ fn kidmode_tame_hint(
             let size = k::BUBBLE_ICON * px;
             draw.translate([0.0, 0.0, 0.02]);
             draw.scale([size, size, size * 0.02]);
-            let light = draw.light;
-            draw.light = full_bright;
+            // Unlit, as in the inventory: the world's side shading would grey
+            // it (sugar looked like gunpowder).
             let stack =
                 horizon_client::items::ItemStack::new(&k::hint_item(items, game.world.game_time), 1);
-            game.native_draw_item(draw, &stack, horizon_assets::item_model::DisplayContext::Gui, None, 0);
-            draw.light = light;
+            let item = game.resolve_item(&stack, horizon_assets::item_model::DisplayContext::Gui, None, 0);
+            if !item.is_empty() {
+                let pose = draw.pose();
+                game.submit_item_unlit(&item, pose, full_bright, draw.vertices_mut());
+            }
         }
     }
     draw.pop();

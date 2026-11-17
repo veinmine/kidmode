@@ -199,7 +199,8 @@ nearest one along the view) shows one.
 The bubble is drawn on your own screen only (a layer on the mob through
 Horizon's `native_mob_layer`), turned to face the camera and full bright, so
 it reads at night too. The item is flattened onto the bubble, so it stays
-inside it from any angle. The bubble sits above a mob's name when it has one.
+inside it from any angle, and drawn without the world's shading, in its
+inventory colours. The bubble sits above a mob's name when it has one.
 
 Single player runs through the game's own local server in the same program,
 so the screen side reads the tamed mobs the server noted. On LAN or a server
