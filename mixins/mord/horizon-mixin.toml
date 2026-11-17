@@ -1,6 +1,6 @@
 [mod]
 id = "mord"
-version = "0.1.0"
+version = "0.2.0"
 priority = 100
 
 # The commit it was tested on (Nightly 2026-11-13). It uses only the native
@@ -58,7 +58,7 @@ bindings = [
   { name = "game", ty = "&mut crate::game::Game<'_>", value = "&mut *self" },
 ]
 
-# Friendly enemies: hostile mobs may not target a player...
+# Friendly enemies / neutral mobs: they may not target a player...
 [[injection]]
 id = "target"
 kind = "HEAD"
@@ -71,15 +71,41 @@ bindings = [
   { name = "cancel", ty = "&mut bool", value = "&mut *cancel" },
 ]
 
-# ...and a hit from one on a player is cancelled.
+# ...a hit from one on a player is cancelled, and so is any hit on an
+# invulnerable mob.
 [[injection]]
 id = "damage"
 kind = "HEAD"
 target = "horizon_client::game::native_hooks::Game<'_>::native_living_incoming_damage_v3"
 helper = "damage.rs"
 bindings = [
+  { name = "victim", ty = "u32", value = "victim" },
   { name = "victim_uuid", ty = "Option<u128>", value = "victim_uuid" },
+  { name = "kind", ty = "&str", value = "kind" },
   { name = "attacker", ty = "Option<u32>", value = "attacker" },
   { name = "attacker_uuid", ty = "Option<u128>", value = "attacker_uuid" },
+  { name = "damage_type", ty = "&str", value = "damage_type" },
   { name = "cancel", ty = "&mut bool", value = "&mut *cancel" },
+]
+
+# Invulnerable mobs are not pushed: knockback without a hit...
+[[injection]]
+id = "knockback"
+kind = "HEAD"
+target = "horizon_client::game::native_hooks::Game<'_>::native_living_knockback"
+helper = "knockback.rs"
+bindings = [
+  { name = "kind", ty = "&str", value = "kind" },
+  { name = "canceled", ty = "&mut bool", value = "&mut *canceled" },
+]
+
+# ...and explosions.
+[[injection]]
+id = "blast"
+kind = "HEAD"
+target = "horizon_client::game::native_hooks::Game<'_>::native_explosion_knockback"
+helper = "blast.rs"
+bindings = [
+  { name = "entity", ty = "Option<u32>", value = "entity" },
+  { name = "knockback_velocity", ty = "&mut [f64; 3]", value = "&mut *knockback_velocity" },
 ]
