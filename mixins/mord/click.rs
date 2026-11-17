@@ -1,6 +1,6 @@
 // A click on the mod's settings page: flip that setting and keep it.
 fn mord_click(game: &mut crate::game::Game<'_>, mod_id: &str, button: usize) {
-    use crate::game::mord as m;
+    use crate::mobs::mord as m;
     if mod_id != m::ID {
         return;
     }

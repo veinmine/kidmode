@@ -5,12 +5,13 @@
 
 use std::collections::HashMap;
 use std::sync::Mutex;
+
 use std::sync::atomic::{AtomicBool, Ordering};
 
 /// The mod's id (its settings folder), name and version, as Options > Mods shows them.
 pub const ID: &str = "mord";
 pub const NAME: &str = "Mord";
-pub const VERSION: &str = "0.2.0";
+pub const VERSION: &str = "0.3.0";
 pub const DESCRIPTION: &str = "Friendly and invulnerable mobs.";
 
 // ---------------------------------------------------------------------------
@@ -129,82 +130,47 @@ pub fn is_animal(kind: &str) -> bool {
 // ---------------------------------------------------------------------------
 // Friendly enemies / Friendly neutral mobs
 // ---------------------------------------------------------------------------
+// Hooked into the mob engine (horizon_client_lib::mobs), not the mod events:
+// `Mob::spares_players` is vanilla's `canAttack(player)`, which every target
+// goal, revenge (`HurtByTargetGoal`), brain and kept target goes through. As a
+// backup, what a friendly mob's own tick does to the player is dropped.
 
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
-enum Attitude {
-    Hostile,
-    Neutral,
+/// Whether mob type `kind` may not attack players with the current settings.
+pub fn friendly_to_players(kind: &str) -> bool {
+    (FRIENDLY_ENEMIES.on() && is_hostile(kind)) || (FRIENDLY_NEUTRAL.on() && is_neutral(kind))
 }
 
-impl Attitude {
-    fn of(kind: &str) -> Option<Self> {
-        if is_hostile(kind) {
-            Some(Attitude::Hostile)
-        } else if is_neutral(kind) {
-            Some(Attitude::Neutral)
-        } else {
-            None
-        }
-    }
+/// Harmful effects a mob can put on the player directly (not through a
+/// projectile). Helpful ones (a dolphin's grace) are kept.
+pub const HARMFUL_EFFECTS: &[&str] = &[
+    "minecraft:blindness", "minecraft:darkness", "minecraft:hunger", "minecraft:levitation",
+    "minecraft:mining_fatigue", "minecraft:nausea", "minecraft:poison", "minecraft:slowness",
+    "minecraft:weakness", "minecraft:wither",
+];
 
-    fn friendly(self) -> bool {
-        match self {
-            Attitude::Hostile => FRIENDLY_ENEMIES.on(),
-            Attitude::Neutral => FRIENDLY_NEUTRAL.on(),
-        }
-    }
+thread_local! {
+    /// Where each ticking mob's events start (`Mob::tick` HEAD), per thread:
+    /// mobs tick on several threads.
+    static TICK_STARTS: std::cell::RefCell<Vec<usize>> = const { std::cell::RefCell::new(Vec::new()) };
 }
 
-/// Mobs seen trying to target a player, by id, so a hit from them can be
-/// recognised (the damage hook names the attacker by id only).
-static ATTACKERS: Mutex<Option<HashMap<u32, Attitude>>> = Mutex::new(None);
-const IDS_CAP: usize = 65_536;
-
-fn remember_attacker(entity: u32, attitude: Attitude) {
-    if let Ok(mut ids) = ATTACKERS.lock() {
-        let ids = ids.get_or_insert_with(HashMap::new);
-        if ids.len() >= IDS_CAP {
-            ids.clear();
-        }
-        ids.insert(entity, attitude);
-    }
+/// A mob's tick starts with `events.len()` events already queued.
+pub fn tick_start(len: usize) {
+    TICK_STARTS.with(|s| s.borrow_mut().push(len));
 }
 
-fn attacker_attitude(entity: u32) -> Option<Attitude> {
-    ATTACKERS.lock().ok()?.as_ref()?.get(&entity).copied()
-}
-
-/// Mob `entity` of type `kind` is about to target `player` (a UUID, none for
-/// a mob or letting go): true to refuse it. Revenge after the player hit it
-/// first goes through the same targeting, so it is refused too.
-pub fn refuse_target(entity: u32, kind: &str, player: Option<u128>) -> bool {
-    if player.is_none() {
-        return false;
-    }
-    let Some(attitude) = Attitude::of(kind) else { return false };
-    remember_attacker(entity, attitude);
-    attitude.friendly()
-}
-
-/// A hit on a player (`victim_player`) by `attacker` is about to land: true to
-/// cancel it when the attacker is a friendly mob. Catches a mob that held its
-/// target from before the setting was turned on.
-pub fn refuse_hit_on_player(
-    victim_player: Option<u128>,
-    attacker: Option<u32>,
-    attacker_player: Option<u128>,
-) -> bool {
-    victim_player.is_some()
-        && attacker_player.is_none()
-        && attacker.and_then(attacker_attitude).is_some_and(Attitude::friendly)
+/// The matching start, when the tick ends.
+pub fn tick_end() -> Option<usize> {
+    TICK_STARTS.with(|s| s.borrow_mut().pop())
 }
 
 // ---------------------------------------------------------------------------
 // Invulnerable animals / Invulnerable enemies
 // ---------------------------------------------------------------------------
-
-/// Damage that still applies, so `/kill` and falling out of the world work.
-pub const ALWAYS_HURTS: &[&str] = &["minecraft:generic_kill", "minecraft:out_of_world"];
+// `Mob::refuses_damage` is vanilla's `isInvulnerableTo` at the start of
+// `hurtServer`: a refused hit deals no damage, sets no attacker (no panic, no
+// revenge) and gives no knockback. Fire panic and explosion pushes are hooked
+// separately.
 
 /// Whether mob type `kind` is invulnerable with the current settings.
 pub fn invulnerable(kind: &str) -> bool {
@@ -212,40 +178,35 @@ pub fn invulnerable(kind: &str) -> bool {
         || (INVULNERABLE_ENEMIES.on() && is_hostile(kind))
 }
 
-/// Invulnerable mobs seen being hit, by id, for the explosion push (which
+/// Invulnerable mobs that refused a hit, by id, for the explosion push (which
 /// names the mob by id only).
-static PROTECTED: Mutex<Option<HashMap<u32, &'static str>>> = Mutex::new(None);
+static PROTECTED: Mutex<Option<HashMap<u32, bool>>> = Mutex::new(None);
+const IDS_CAP: usize = 65_536;
 
-fn remember_protected(entity: u32, kind: &str) {
-    let kind = if is_animal(kind) { "animal" } else { "enemy" };
+/// Mob `entity` of type `kind` is hit (`bypasses`: `/kill`, the void): true to
+/// refuse the hit.
+pub fn refuse_damage(entity: u32, kind: &str, bypasses: bool) -> bool {
+    if bypasses || !invulnerable(kind) {
+        return false;
+    }
     if let Ok(mut ids) = PROTECTED.lock() {
         let ids = ids.get_or_insert_with(HashMap::new);
         if ids.len() >= IDS_CAP {
             ids.clear();
         }
-        ids.insert(entity, kind);
+        ids.insert(entity, is_animal(kind));
     }
+    true
 }
 
-/// Whether mob `entity`, seen hit before, is still invulnerable.
+/// Whether mob `entity`, seen refusing a hit, is still invulnerable.
 pub fn protected_id(entity: u32) -> bool {
-    let group = PROTECTED.lock().ok().and_then(|ids| ids.as_ref()?.get(&entity).copied());
-    match group {
-        Some("animal") => INVULNERABLE_ANIMALS.on(),
-        Some(_) => INVULNERABLE_ENEMIES.on(),
+    let animal = PROTECTED.lock().ok().and_then(|ids| ids.as_ref()?.get(&entity).copied());
+    match animal {
+        Some(true) => INVULNERABLE_ANIMALS.on(),
+        Some(false) => INVULNERABLE_ENEMIES.on(),
         None => false,
     }
-}
-
-/// `victim` of type `kind` is about to take `damage_type`: true to cancel the
-/// hit entirely. A canceled hit deals no damage, no knockback, no hurt flash and
-/// leaves no attacker to panic from or take revenge on.
-pub fn refuse_damage(victim: u32, kind: &str, damage_type: &str) -> bool {
-    if !invulnerable(kind) || ALWAYS_HURTS.contains(&damage_type) {
-        return false;
-    }
-    remember_protected(victim, kind);
-    true
 }
 
 #[cfg(test)]
@@ -255,39 +216,38 @@ mod tests {
     // The settings are global, so the tests that change them run in one test.
     #[test]
     fn behaviour_follows_the_settings() {
-        // Defaults.
         assert!(FRIENDLY_ENEMIES.default && FRIENDLY_NEUTRAL.default);
         assert!(INVULNERABLE_ANIMALS.default && !INVULNERABLE_ENEMIES.default);
 
-        // Friendly: hostile and neutral mobs may not target players.
-        assert!(refuse_target(1, "minecraft:skeleton", Some(42)));
-        assert!(refuse_target(2, "minecraft:wolf", Some(42)));
-        assert!(!refuse_target(3, "minecraft:skeleton", None));
-        assert!(!refuse_target(4, "minecraft:cow", Some(42)));
-        assert!(refuse_hit_on_player(Some(7), Some(1), None));
-        assert!(!refuse_hit_on_player(Some(7), Some(999), None));
-        assert!(!refuse_hit_on_player(None, Some(1), None));
-        assert!(!refuse_hit_on_player(Some(7), Some(1), Some(8)));
+        assert!(friendly_to_players("minecraft:skeleton"));
+        assert!(friendly_to_players("minecraft:zombified_piglin"));
+        assert!(!friendly_to_players("minecraft:cow"));
         FRIENDLY_NEUTRAL.set(false);
-        assert!(!refuse_target(2, "minecraft:wolf", Some(42)));
-        assert!(!refuse_hit_on_player(Some(7), Some(2), None));
-        assert!(refuse_target(1, "minecraft:skeleton", Some(42)));
+        assert!(!friendly_to_players("minecraft:zombified_piglin"));
+        assert!(friendly_to_players("minecraft:creeper"));
         FRIENDLY_ENEMIES.set(false);
-        assert!(!refuse_target(1, "minecraft:skeleton", Some(42)));
-        assert!(!refuse_hit_on_player(Some(7), Some(1), None));
+        assert!(!friendly_to_players("minecraft:creeper"));
 
-        // Invulnerable: animals by default, enemies when turned on.
-        assert!(refuse_damage(10, "minecraft:cow", "minecraft:lava"));
+        assert!(refuse_damage(10, "minecraft:cow", false));
         assert!(protected_id(10));
-        assert!(!refuse_damage(10, "minecraft:cow", "minecraft:generic_kill"));
-        assert!(!refuse_damage(11, "minecraft:zombie", "minecraft:player_attack"));
+        assert!(!refuse_damage(10, "minecraft:cow", true));
+        assert!(!refuse_damage(11, "minecraft:zombie", false));
         INVULNERABLE_ENEMIES.set(true);
-        assert!(refuse_damage(11, "minecraft:zombie", "minecraft:on_fire"));
+        assert!(refuse_damage(11, "minecraft:zombie", false));
         INVULNERABLE_ANIMALS.set(false);
-        assert!(!refuse_damage(10, "minecraft:cow", "minecraft:lava"));
+        assert!(!refuse_damage(10, "minecraft:cow", false));
         assert!(!protected_id(10));
         assert!(protected_id(11));
-        assert!(!refuse_damage(12, "minecraft:player", "minecraft:lava"));
+        assert!(!refuse_damage(12, "minecraft:player", false));
+    }
+
+    #[test]
+    fn tick_starts_nest() {
+        tick_start(3);
+        tick_start(5);
+        assert_eq!(tick_end(), Some(5));
+        assert_eq!(tick_end(), Some(3));
+        assert_eq!(tick_end(), None);
     }
 
     #[test]

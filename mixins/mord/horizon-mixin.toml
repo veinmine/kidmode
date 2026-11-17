@@ -1,21 +1,25 @@
 [mod]
 id = "mord"
-version = "0.2.0"
+version = "0.3.0"
 priority = 100
 
-# The commit it was tested on (Nightly 2026-11-13). It uses only the native
-# hook points (hooks 1 in compatibility.json): the launcher builds it on any
-# Horizon that has them.
+# The commit it was built and tested on (Nightly 2026-11-13). Besides the native
+# hook points it changes the mob engine itself (horizon_client_lib::mobs), so
+# it is tied to this commit.
 [compatibility]
 horizon_revision = "9f42064c11efe7ef3e5ed2baad7ddc2a3b36eea0"
 
+# The mod's logic, in the mob engine's crate so its hooks can reach it; the
+# game crate reaches it as crate::mobs::mord too.
 [[module]]
 id = "runtime"
-file = "crates/horizon-client/src/game.rs"
+file = "crates/horizon-client/src/mobs.rs"
 name = "mord"
+visibility = "pub"
 source = "runtime.rs"
 
-# Lists the mod in Options > Mods.
+# ---- Options > Mods ------------------------------------------------------
+
 [[injection]]
 id = "list"
 kind = "HEAD"
@@ -25,7 +29,6 @@ bindings = [
   { name = "mods", ty = "&mut Vec<crate::game::native_hooks::NativeMod>", value = "&mut *mods" },
 ]
 
-# The settings page under Options > Mods > Mord.
 [[injection]]
 id = "settings"
 kind = "HEAD"
@@ -48,7 +51,7 @@ bindings = [
   { name = "button", ty = "usize", value = "button" },
 ]
 
-# Reads the setting on the server side before mobs tick.
+# Reads the settings on the server side before mobs tick.
 [[injection]]
 id = "load"
 kind = "HEAD"
@@ -58,48 +61,96 @@ bindings = [
   { name = "game", ty = "&mut crate::game::Game<'_>", value = "&mut *self" },
 ]
 
-# Friendly enemies / neutral mobs: they may not target a player...
+# ---- Friendly enemies / Friendly neutral mobs ----------------------------
+
+# Mob.canAttack(player) is false for a friendly mob.
 [[injection]]
-id = "target"
-kind = "HEAD"
-target = "horizon_client::game::native_hooks::Game<'_>::native_living_change_target"
-helper = "target.rs"
+id = "spares"
+kind = "RETURN"
+target = "horizon_client_lib::mobs::goals::Mob::spares_players"
+helper = "spares.rs"
 bindings = [
-  { name = "entity", ty = "u32", value = "entity" },
-  { name = "kind", ty = "&str", value = "kind" },
-  { name = "target", ty = "Option<u128>", value = "target" },
-  { name = "cancel", ty = "&mut bool", value = "&mut *cancel" },
+  { name = "value", ty = "bool", value = "$value" },
+  { name = "m", ty = "&crate::mobs::Mob", value = "self" },
 ]
 
-# ...a hit from one on a player is cancelled, and so is any hit on an
-# invulnerable mob.
+# Backup: what a friendly mob's tick does to the player is dropped.
 [[injection]]
-id = "damage"
+id = "tick-start"
 kind = "HEAD"
-target = "horizon_client::game::native_hooks::Game<'_>::native_living_incoming_damage_v3"
-helper = "damage.rs"
+target = "horizon_client_lib::mobs::Mob::tick"
+helper = "tick_start.rs"
 bindings = [
-  { name = "victim", ty = "u32", value = "victim" },
-  { name = "victim_uuid", ty = "Option<u128>", value = "victim_uuid" },
-  { name = "kind", ty = "&str", value = "kind" },
-  { name = "attacker", ty = "Option<u32>", value = "attacker" },
-  { name = "attacker_uuid", ty = "Option<u128>", value = "attacker_uuid" },
-  { name = "damage_type", ty = "&str", value = "damage_type" },
-  { name = "cancel", ty = "&mut bool", value = "&mut *cancel" },
+  { name = "events", ty = "&Vec<crate::mobs::MobEvent>", value = "&*events" },
 ]
 
-# Invulnerable mobs are not pushed: knockback without a hit...
 [[injection]]
-id = "knockback"
-kind = "HEAD"
-target = "horizon_client::game::native_hooks::Game<'_>::native_living_knockback"
-helper = "knockback.rs"
+id = "tick-end"
+kind = "RETURN"
+target = "horizon_client_lib::mobs::Mob::tick"
+helper = "tick_end.rs"
 bindings = [
-  { name = "kind", ty = "&str", value = "kind" },
-  { name = "canceled", ty = "&mut bool", value = "&mut *canceled" },
+  { name = "value", ty = "bool", value = "$value" },
+  { name = "m", ty = "&crate::mobs::Mob", value = "&*self" },
+  { name = "events", ty = "&mut Vec<crate::mobs::MobEvent>", value = "&mut *events" },
 ]
 
-# ...and explosions.
+# ---- Invulnerable animals / Invulnerable enemies -------------------------
+
+# isInvulnerableTo: every hit but /kill and the void is refused.
+[[injection]]
+id = "refuses"
+kind = "RETURN"
+target = "horizon_client_lib::mobs::Mob::refuses_damage"
+helper = "refuses.rs"
+bindings = [
+  { name = "value", ty = "bool", value = "$value" },
+  { name = "m", ty = "&crate::mobs::Mob", value = "self" },
+  { name = "source", ty = "&crate::mobs::Damage", value = "source" },
+]
+
+# No panic, not even from fire.
+[[injection]]
+id = "should-panic"
+kind = "RETURN"
+target = "horizon_client_lib::mobs::goals::should_panic"
+helper = "no_panic.rs"
+bindings = [
+  { name = "value", ty = "bool", value = "$value" },
+  { name = "m", ty = "&crate::mobs::Mob", value = "m" },
+]
+
+[[injection]]
+id = "panic-goal"
+kind = "HEAD"
+cancellable = true
+target = "horizon_client_lib::mobs::goals::<Panic as Goal>::can_use"
+helper = "panic_goal.rs"
+bindings = [
+  { name = "m", ty = "&crate::mobs::Mob", value = "&*m" },
+]
+
+[[injection]]
+id = "panda-panic"
+kind = "RETURN"
+target = "horizon_client_lib::mobs::panda::environmental"
+helper = "no_panic.rs"
+bindings = [
+  { name = "value", ty = "bool", value = "$value" },
+  { name = "m", ty = "&crate::mobs::Mob", value = "m" },
+]
+
+[[injection]]
+id = "polar-bear-panic"
+kind = "RETURN"
+target = "horizon_client_lib::mobs::polar_bear::environmental_panic"
+helper = "no_panic.rs"
+bindings = [
+  { name = "value", ty = "bool", value = "$value" },
+  { name = "m", ty = "&crate::mobs::Mob", value = "m" },
+]
+
+# Explosions don't push them.
 [[injection]]
 id = "blast"
 kind = "HEAD"

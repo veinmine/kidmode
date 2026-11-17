@@ -1,6 +1,6 @@
 // The mod's row in Options > Mods.
 fn mord_listed(mods: &mut Vec<crate::game::native_hooks::NativeMod>) {
-    use crate::game::mord as m;
+    use crate::mobs::mord as m;
     mods.push(crate::game::native_hooks::NativeMod {
         id: m::ID.into(),
         title: format!("{} {}", m::NAME, m::VERSION),
