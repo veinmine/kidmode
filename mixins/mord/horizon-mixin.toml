@@ -96,6 +96,116 @@ bindings = [
   { name = "events", ty = "&mut Vec<crate::mobs::MobEvent>", value = "&mut *events" },
 ]
 
+# Mob.getTarget: a friendly mob drops a player target however it was set.
+[[injection]]
+id = "invalid-target"
+kind = "HEAD"
+target = "horizon_client_lib::mobs::ai::drop_invalid_player_target"
+helper = "invalid_target.rs"
+bindings = [
+  { name = "m", ty = "&mut crate::mobs::Mob", value = "&mut *m" },
+]
+
+# To a friendly mob the player counts as creative in every target check.
+[[injection]]
+id = "target-info"
+kind = "RETURN"
+target = "horizon_client_lib::mobs::world::MobWorld<'_>::target_info"
+helper = "target_info.rs"
+bindings = [
+  { name = "value", ty = "Option<TargetInfo>", value = "$value" },
+  { name = "who", ty = "Who", value = "who" },
+]
+
+# Mob-specific player checks that bypass the above.
+[[injection]]
+id = "warden-target"
+kind = "RETURN"
+target = "horizon_client_lib::mobs::warden::can_target"
+helper = "warden_target.rs"
+bindings = [
+  { name = "value", ty = "bool", value = "$value" },
+  { name = "who", ty = "crate::mobs::Who", value = "who" },
+]
+
+[[injection]]
+id = "brain-attack"
+kind = "RETURN"
+target = "horizon_client_lib::mobs::monster_brain::can_attack"
+helper = "brain_attack.rs"
+bindings = [
+  { name = "value", ty = "bool", value = "$value" },
+  { name = "m", ty = "&crate::mobs::Mob", value = "m" },
+  { name = "who", ty = "crate::mobs::Who", value = "who" },
+]
+
+[[injection]]
+id = "phantom-attack"
+kind = "RETURN"
+target = "horizon_client_lib::mobs::phantom::can_attack"
+helper = "refuse_player.rs"
+bindings = [
+  { name = "value", ty = "bool", value = "$value" },
+]
+
+[[injection]]
+id = "bee-target"
+kind = "RETURN"
+target = "horizon_client_lib::mobs::bee::valid_player_target"
+helper = "refuse_player.rs"
+bindings = [
+  { name = "value", ty = "bool", value = "$value" },
+]
+
+[[injection]]
+id = "wolf-target"
+kind = "RETURN"
+target = "horizon_client_lib::mobs::tame::valid_player_target"
+helper = "refuse_player.rs"
+bindings = [
+  { name = "value", ty = "bool", value = "$value" },
+]
+
+[[injection]]
+id = "goat-target"
+kind = "RETURN"
+target = "horizon_client_lib::mobs::goat::nearest_target"
+helper = "goat_target.rs"
+bindings = [
+  { name = "value", ty = "Option<Who>", value = "$value" },
+  { name = "m", ty = "&crate::mobs::Mob", value = "&*m" },
+]
+
+[[injection]]
+id = "goat-ram"
+kind = "RETURN"
+target = "horizon_client_lib::mobs::goat::rammed"
+helper = "goat_target.rs"
+bindings = [
+  { name = "value", ty = "Option<Who>", value = "$value" },
+  { name = "m", ty = "&crate::mobs::Mob", value = "m" },
+]
+
+[[injection]]
+id = "enderman-stare"
+kind = "HEAD"
+cancellable = true
+target = "horizon_client_lib::mobs::enderman::<LookForPlayer as Goal>::can_use"
+helper = "mob_cancel_bool.rs"
+bindings = [
+  { name = "m", ty = "&crate::mobs::Mob", value = "&*m" },
+]
+
+[[injection]]
+id = "piglin-guard"
+kind = "HEAD"
+cancellable = true
+target = "horizon_client_lib::mobs::piglin::set_guarded_anger_target"
+helper = "mob_cancel.rs"
+bindings = [
+  { name = "m", ty = "&crate::mobs::Mob", value = "&*m" },
+]
+
 # Unless friendly mobs may fight: no mob as a target, no revenge on one.
 [[injection]]
 id = "spares-target"

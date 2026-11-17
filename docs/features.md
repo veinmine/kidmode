@@ -41,9 +41,15 @@ because they never target you. As a backup, any hit, sting, harmful effect,
 contact damage (slimes), sonic boom or curse that a friendly mob's tick aims
 at you is dropped.
 
-Bosses: the Warden and Elder Guardian follow the same rules. The Wither's
-heads never pick you. The Ender Dragon treats you like a creative player:
-no charging, no breath, no wing hits or pushes.
+To a friendly mob you count as a creative player in every targeting check,
+and the mob-specific ways of getting angry are switched off too: an
+enderman's stare, a piglin's anger at a looted chest or mined gold, a goat's
+ram, a bee's or wolf's anger.
+
+Bosses: the Warden never gets angry at you, so it never roars, chases or
+sonic-booms you. The Elder Guardian's curse is dropped. A friendly Wither
+skips its spawn blast and its heads never pick you. The Ender Dragon treats
+you like a creative player: no charging, no breath, no wing hits or pushes.
 
 ## Friendly neutral mobs
 

@@ -25,6 +25,9 @@ fn mord_tick_end(
             | E::CubeHurtPlayer { .. }
             | E::ElderCurse { .. }
             | E::Darkness { .. } => true,
+            // A friendly wither's spawn blast (a lit creeper still explodes).
+            E::Explode(_, _, species, _) => *species == crate::mobs::Species::Wither,
+            E::ExplosionSource { kind, .. } => &**kind == "minecraft:wither",
             E::EffectPlayer { effect, .. } => harmful(effect),
             E::SonicBoom { target, .. }
             | E::Knockback { target, .. }
