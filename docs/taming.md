@@ -134,7 +134,7 @@ Hook points found in Horizon's source (revision `9f42064c`):
 - **No teleports:** cancellable HEAD hooks on `mobs::enderman::teleport_to`
   and `mobs::shulker::teleport` refuse a tamed mob's teleport.
 - **Lead position:** a cancellable HEAD hook on `mobs::leash::leash_offset`
-  hangs the lead at half the mob's height, at its front.
+  hangs the lead at the centre of the mob (half its height).
 - **Leads:** a cancellable HEAD hook on `horizon_client_lib::mobs::leash::can_be_leashed` (a RETURN hook is refused there: the function has a nested `use`).
 - **Persistence and sunlight:** set `persistent` when taming, and skip
   `burn_undead` for tamed mobs (as for invulnerable undead).

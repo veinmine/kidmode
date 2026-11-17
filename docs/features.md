@@ -145,7 +145,7 @@ zombie"), shows a few green sparkles now and then, and carries the entity tag
 a mob and collect its loot.
 
 Every mob in the table can be put on a lead, tamed or not, to bring it home.
-The lead hangs from the middle of its body rather than its head (cows and
+The lead hangs from the centre of its body rather than its head (cows and
 chickens keep vanilla's). A tamed enderman or shulker never teleports, so it
 doesn't break its lead.
 

@@ -733,7 +733,7 @@ pub fn tamed_mob_name(kind: &str, code: &str, game: impl Fn(&str) -> Option<Stri
 }
 
 /// Whether a lead on mob type `kind` hangs from the middle of its body (half
-/// its height, at its front) instead of vanilla's eye height. Cows and
+/// its height, on its centre) instead of vanilla's eye height. Cows and
 /// chickens keep vanilla's.
 pub fn lead_at_middle(kind: &str) -> bool {
     leashable(kind) && !matches!(kind, "minecraft:cow" | "minecraft:chicken")
