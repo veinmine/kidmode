@@ -241,6 +241,18 @@ bindings = [
 ]
 
 [[injection]]
+id = "wither-shoot"
+kind = "HEAD"
+cancellable = true
+target = "horizon_client_lib::mobs::wither::shoot"
+helper = "wither_shoot.rs"
+bindings = [
+  { name = "m", ty = "&crate::mobs::Mob", value = "&*m" },
+  { name = "head", ty = "usize", value = "head" },
+  { name = "dangerous", ty = "bool", value = "dangerous" },
+]
+
+[[injection]]
 id = "dragon-players"
 kind = "RETURN"
 target = "horizon_client::game::dragon::Game<'_>::fight_players"

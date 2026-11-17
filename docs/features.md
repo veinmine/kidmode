@@ -49,7 +49,9 @@ ram, a bee's or wolf's anger.
 
 Bosses: the Warden never gets angry at you, so it never roars, chases or
 sonic-booms you. The Elder Guardian's curse is dropped. A friendly Wither
-skips its spawn blast and its heads never pick you. The Ender Dragon treats
+skips its spawn blast and shoots no skulls at all (with "Friendly mobs fight
+other mobs" on it may shoot at mobs, but never its idle volleys at random
+spots). The Ender Dragon treats
 you like a creative player: no charging, no breath, no wing hits or pushes.
 
 ## Friendly neutral mobs
