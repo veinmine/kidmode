@@ -1,11 +1,12 @@
 [package]
-name = "mod-mord"
+name = "horizon-mod-mord"
 version = "0.1.0"
 edition = "2024"
+license = "MIT"
+publish = false
 authors = ["veinmine <veinmine@proton.me>"]
+description = "Mord, a native Horizon mod."
 
-[dependencies]
-# The pinned SDK's API crate, fetched into .horizon/sdk/ by any `cargo horizon-mod` command (the
-# launcher builds against its own copy of the same build). Any other registry dependency must be
-# pinned with `horizon-launcher native-lock .` before building.
-horizon-mod-api = { path = ".horizon/sdk/api/crates/horizon-mod-api" }
+# The mod's logic and its tests: the same file the bundle adds to the game.
+[lib]
+path = "mixins/mord/runtime.rs"
