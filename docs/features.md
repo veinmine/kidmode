@@ -1,7 +1,7 @@
 # Kid Mode features
 
-Kid Mode (mod id `mord`) makes the world gentler. Every feature, with its
-setting. Settings live under **Options > Mods > Kid Mode** and are kept in `horizon-mods/.horizon-mod-data/mord/`
+Kid Mode (mod id `kidmode`) makes the world gentler. Every feature, with its
+setting. Settings live under **Options > Mods > Kid Mode** and are kept in `horizon-mods/.horizon-mod-data/kidmode/`
 in the game folder, one file per setting holding `true` or `false`. On a
 dedicated server the server's own copies of these files decide.
 
@@ -32,7 +32,7 @@ usual. `/kill` and falling out of the world still work.
 ## Mob groups
 
 Vanilla mobs only; mobs from other mods are not affected yet. The lists are
-`HOSTILE`, `NEUTRAL` and `ANIMALS` in `mixins/mord/runtime.rs`.
+`HOSTILE`, `NEUTRAL` and `ANIMALS` in `mixins/kidmode/runtime.rs`.
 
 - **Enemies (hostile):** zombies, skeletons, creepers, spiders, witches,
   illagers, slimes, phantoms, guardians and the rest of vanilla's hostile
@@ -141,7 +141,7 @@ A tamed mob drops one item of its loot every 5 to 10 minutes, like a chicken's
 egg (adults only). It is always friendly, never despawns, never burns in
 daylight and stays where it is. It gets a name ("Tame zombie", "Oswojony
 zombie"), shows a few green sparkles now and then, and carries the entity tag
-`mord_tamed` (`/tag <mob> add mord_tamed` tames one too). Any player can tame
+`kidmode_tamed` (`/tag <mob> add kidmode_tamed` tames one too). Any player can tame
 a mob and collect its loot.
 
 Every mob in the table can be put on a lead, tamed or not, to bring it home.
@@ -174,5 +174,5 @@ doesn't break its lead.
 
 With the setting off, feeding does nothing, tamed mobs stop dropping loot and
 count as untamed, and leads work as in vanilla; they keep their tag and name.
-The table is `TAMEABLE` in `mixins/mord/runtime.rs`; the design is in
+The table is `TAMEABLE` in `mixins/kidmode/runtime.rs`; the design is in
 [taming.md](taming.md).

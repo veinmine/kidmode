@@ -1,5 +1,5 @@
 [package]
-name = "horizon-mod-mord"
+name = "horizon-mod-kidmode"
 version = "0.7.0"
 edition = "2024"
 rust-version = "1.99"
@@ -10,4 +10,4 @@ description = "Kid Mode, a native Horizon mod."
 
 # The mod's logic and its tests: the same file the bundle adds to the game.
 [lib]
-path = "mixins/mord/runtime.rs"
+path = "mixins/kidmode/runtime.rs"

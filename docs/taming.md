@@ -54,7 +54,7 @@ carrot doesn't clash with breeding (wheat and seeds stay breeding items).
 Left out: the illagers, the bosses, and rare drops (wither skull, evoker's
 totem, a zombie's iron ingot, carrot and potato).
 
-The table lives in code in `mixins/mord/runtime.rs` (one list of mob, loot,
+The table lives in code in `mixins/kidmode/runtime.rs` (one list of mob, loot,
 taming items), so it's easy to change.
 
 ## Taming
@@ -117,9 +117,9 @@ Hook points found in Horizon's source (revision `9f42064c`):
 - **Feeding:** a cancellable HEAD hook on
   `horizon_client::game::creatures::Game::interact_mob`, before vanilla's own
   interactions (name tags, leads, buckets).
-- **Tamed state:** the entity tag `mord_tamed` in the mob's saved `Tags`
+- **Tamed state:** the entity tag `kidmode_tamed` in the mob's saved `Tags`
   (`game.persist.raw`), so it's saved with the world and survives conversions.
-  `/tag @e[type=zombie] add mord_tamed` tames a mob for testing.
+  `/tag @e[type=zombie] add kidmode_tamed` tames a mob for testing.
   `Extra.tame` and `Extra.owner` aren't used, because the game saves them only
   for cats, wolves and the like. A HEAD hook on
   `horizon_client::game::creatures::Game::tick_creatures` copies the tagged

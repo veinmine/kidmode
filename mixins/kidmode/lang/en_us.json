@@ -1,0 +1,18 @@
+{
+  "kidmode.name": "Kid Mode",
+  "kidmode.description": "A gentler world: friendly and invulnerable mobs, an invulnerable player, sunny days and nights that pass by themselves.",
+  "kidmode.setting.invulnerable_player": "Invulnerable player",
+  "kidmode.setting.friendly_enemies": "Friendly enemies",
+  "kidmode.setting.friendly_neutral_mobs": "Friendly neutral mobs",
+  "kidmode.setting.friendly_mobs_fight_mobs": "Friendly mobs fight other mobs",
+  "kidmode.setting.invulnerable_animals": "Invulnerable animals",
+  "kidmode.setting.invulnerable_enemies": "Invulnerable enemies",
+  "kidmode.setting.invulnerable_ender_dragon": "Invulnerable Ender Dragon",
+  "kidmode.setting.always_sunny": "Always sunny",
+  "kidmode.setting.auto_sleep": "Auto sleep",
+  "kidmode.setting.tame_for_loot": "Tame enemies for loot",
+  "kidmode.tamed": "Tame %s",
+  "kidmode.tamed.feminine": "Tame %s",
+  "options.on": "ON",
+  "options.off": "OFF"
+}
