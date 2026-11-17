@@ -1,0 +1,15 @@
+{
+  "mord.name": "Tryb dla dzieci",
+  "mord.description": "Łagodniejszy świat: przyjazne i nieśmiertelne stworzenia, nieśmiertelny gracz, słoneczne dni i noce, które mijają same.",
+  "mord.setting.invulnerable_player": "Nieśmiertelny gracz",
+  "mord.setting.friendly_enemies": "Przyjaźni wrogowie",
+  "mord.setting.friendly_neutral_mobs": "Przyjazne neutralne stworzenia",
+  "mord.setting.friendly_mobs_fight_mobs": "Przyjazne stworzenia walczą z innymi",
+  "mord.setting.invulnerable_animals": "Nieśmiertelne zwierzęta",
+  "mord.setting.invulnerable_enemies": "Nieśmiertelni wrogowie",
+  "mord.setting.invulnerable_ender_dragon": "Nieśmiertelny Smok Endu",
+  "mord.setting.always_sunny": "Zawsze słonecznie",
+  "mord.setting.auto_sleep": "Automatyczny sen",
+  "options.on": "Wł.",
+  "options.off": "Wył."
+}

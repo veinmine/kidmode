@@ -13,3 +13,5 @@ game as `crate::game::mord`; `list.rs` hooks the native `native_mods` point to
 list the mod in Options > Mods. See https://playhorizon.dev/docs/make-a-mod.
 
 Features and their settings are listed in [docs/features.md](docs/features.md).
+Translations (English, Polish) are in `mixins/mord/lang/` and `runtime.rs`; the
+Polish terminology is in [docs/translations/dictionary.md](docs/translations/dictionary.md).

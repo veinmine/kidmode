@@ -1,6 +1,6 @@
 [mod]
 id = "mord"
-version = "0.5.1"
+version = "0.6.0"
 priority = 100
 
 # The commit it was built and tested on (Nightly 2026-11-13). Besides the native

@@ -5,6 +5,10 @@ setting. Settings live under **Options > Mods > Kid Mode** and are kept in `hori
 in the game folder, one file per setting holding `true` or `false`. On a
 dedicated server the server's own copies of these files decide.
 
+The mod's name, description and settings follow the game's language: English
+and Polish (**Tryb dla dzieci**). The Polish terms are listed in
+[translations/dictionary.md](translations/dictionary.md).
+
 | Feature | Setting (file) | Default |
 |---|---|---|
 | [Invulnerable player](#invulnerable-player) | Invulnerable player (`invulnerable_player`) | ON |

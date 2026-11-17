@@ -1,0 +1,15 @@
+{
+  "mord.name": "Kid Mode",
+  "mord.description": "A gentler world: friendly and invulnerable mobs, an invulnerable player, sunny days and nights that pass by themselves.",
+  "mord.setting.invulnerable_player": "Invulnerable player",
+  "mord.setting.friendly_enemies": "Friendly enemies",
+  "mord.setting.friendly_neutral_mobs": "Friendly neutral mobs",
+  "mord.setting.friendly_mobs_fight_mobs": "Friendly mobs fight other mobs",
+  "mord.setting.invulnerable_animals": "Invulnerable animals",
+  "mord.setting.invulnerable_enemies": "Invulnerable enemies",
+  "mord.setting.invulnerable_ender_dragon": "Invulnerable Ender Dragon",
+  "mord.setting.always_sunny": "Always sunny",
+  "mord.setting.auto_sleep": "Auto sleep",
+  "options.on": "ON",
+  "options.off": "OFF"
+}

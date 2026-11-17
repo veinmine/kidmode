@@ -41,11 +41,11 @@ pub const EN_US: &[(&str, &str)] = &[
 /// Polish. Terms follow docs/translations/dictionary.md.
 pub const PL_PL: &[(&str, &str)] = &[
     ("mord.name", "Tryb dla dzieci"),
-    ("mord.description", "Łagodniejszy świat: przyjazne i nieśmiertelne moby, nieśmiertelny gracz, słoneczne dni i noce, które mijają same."),
+    ("mord.description", "Łagodniejszy świat: przyjazne i nieśmiertelne stworzenia, nieśmiertelny gracz, słoneczne dni i noce, które mijają same."),
     ("mord.setting.invulnerable_player", "Nieśmiertelny gracz"),
     ("mord.setting.friendly_enemies", "Przyjaźni wrogowie"),
-    ("mord.setting.friendly_neutral_mobs", "Przyjazne neutralne moby"),
-    ("mord.setting.friendly_mobs_fight_mobs", "Przyjazne moby walczą z innymi mobami"),
+    ("mord.setting.friendly_neutral_mobs", "Przyjazne neutralne stworzenia"),
+    ("mord.setting.friendly_mobs_fight_mobs", "Przyjazne stworzenia walczą z innymi"),
     ("mord.setting.invulnerable_animals", "Nieśmiertelne zwierzęta"),
     ("mord.setting.invulnerable_enemies", "Nieśmiertelni wrogowie"),
     ("mord.setting.invulnerable_ender_dragon", "Nieśmiertelny Smok Endu"),
