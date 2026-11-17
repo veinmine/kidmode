@@ -69,13 +69,17 @@ pub static INVULNERABLE_ANIMALS: Setting =
 pub static INVULNERABLE_ENEMIES: Setting =
     Setting::new("invulnerable_enemies", "Invulnerable enemies", false);
 
+pub static INVULNERABLE_DRAGON: Setting =
+    Setting::new("invulnerable_ender_dragon", "Invulnerable Ender Dragon", false);
+
 /// The settings page, in order: button `i` toggles `SETTINGS[i]`.
-pub static SETTINGS: [&Setting; 5] = [
+pub static SETTINGS: [&Setting; 6] = [
     &FRIENDLY_ENEMIES,
     &FRIENDLY_NEUTRAL,
     &FRIENDLY_FIGHT_MOBS,
     &INVULNERABLE_ANIMALS,
     &INVULNERABLE_ENEMIES,
+    &INVULNERABLE_DRAGON,
 ];
 
 static LOADED: AtomicBool = AtomicBool::new(false);
@@ -229,6 +233,15 @@ pub fn unstash_fire() -> i32 {
     HIDDEN_FIRE.with(|f| f.replace(0))
 }
 
+/// Damage types that still hurt an invulnerable mob or dragon.
+pub const BYPASSES_INVULNERABILITY: &[&str] = &["minecraft:generic_kill", "minecraft:out_of_world"];
+
+/// The ender dragon is hit by `damage_type` (none when not known): true to
+/// refuse the hit.
+pub fn refuse_dragon_damage(damage_type: Option<&str>) -> bool {
+    INVULNERABLE_DRAGON.on() && !damage_type.is_some_and(|t| BYPASSES_INVULNERABILITY.contains(&t))
+}
+
 /// Invulnerable mobs that refused a hit, by id, for the explosion push (which
 /// names the mob by id only).
 static PROTECTED: Mutex<Option<HashMap<u32, bool>>> = Mutex::new(None);
@@ -269,6 +282,7 @@ mod tests {
     fn behaviour_follows_the_settings() {
         assert!(FRIENDLY_ENEMIES.default && FRIENDLY_NEUTRAL.default && !FRIENDLY_FIGHT_MOBS.default);
         assert!(INVULNERABLE_ANIMALS.default && !INVULNERABLE_ENEMIES.default);
+        assert!(!INVULNERABLE_DRAGON.default);
 
         assert!(friendly_to_players("minecraft:skeleton"));
         assert!(friendly_to_players("minecraft:zombified_piglin"));
@@ -298,6 +312,12 @@ mod tests {
         assert!(!protected_id(10));
         assert!(protected_id(11));
         assert!(!refuse_damage(12, "minecraft:player", false));
+
+        assert!(!refuse_dragon_damage(Some("minecraft:arrow")));
+        INVULNERABLE_DRAGON.set(true);
+        assert!(refuse_dragon_damage(Some("minecraft:arrow")));
+        assert!(refuse_dragon_damage(None));
+        assert!(!refuse_dragon_damage(Some("minecraft:generic_kill")));
     }
 
     #[test]

@@ -12,6 +12,7 @@ dedicated server the server's own copies of these files decide.
 | [Friendly mobs fight other mobs](#friendly-mobs-fight-other-mobs) | Friendly mobs fight other mobs (`friendly_mobs_fight_mobs`) | OFF |
 | [Invulnerable animals](#invulnerable-animals) | Invulnerable animals (`invulnerable_animals`) | ON |
 | [Invulnerable enemies](#invulnerable-enemies) | Invulnerable enemies (`invulnerable_enemies`) | OFF |
+| [Invulnerable Ender Dragon](#invulnerable-ender-dragon) | Invulnerable Ender Dragon (`invulnerable_ender_dragon`) | OFF |
 
 ## Mob groups
 
@@ -84,5 +85,11 @@ without seeking shade, and witches don't drink fire resistance.
 
 - An invulnerable creeper never explodes, not even when lit with flint and
   steel.
-- The Ender Dragon is not covered (it is not a mob of the engine): it can still
-  be killed.
+- The Ender Dragon has its own setting, below.
+
+## Invulnerable Ender Dragon
+
+Off by default. The Ender Dragon refuses every hit (arrows, melee, beds,
+explosions, crystals blowing up next to it) before it reacts, so it takes no
+damage and doesn't change its flight because of it. `/kill` still works. With
+it on, the dragon fight can't be won.

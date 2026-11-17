@@ -360,6 +360,17 @@ bindings = [
   { name = "m", ty = "&mut crate::mobs::Mob", value = "&mut *m" },
 ]
 
+# Invulnerable Ender Dragon: its hits are refused before it reacts.
+[[injection]]
+id = "dragon-hurt"
+kind = "HEAD"
+cancellable = true
+target = "horizon_client::game::dragon::Dragon::hurt_from"
+helper = "dragon_hurt.rs"
+bindings = [
+  { name = "counts", ty = "Option<HurtSource<'_>>", value = "counts" },
+]
+
 # Explosions don't push them.
 [[injection]]
 id = "blast"
