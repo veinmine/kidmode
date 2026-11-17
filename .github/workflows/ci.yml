@@ -33,8 +33,17 @@ jobs:
             -c protocol.version=2 fetch --no-tags --depth=1 origin "$SHA"
           git checkout -q --detach FETCH_HEAD
           git log -1 --format='Checked out %H %s'
+      # The runner image has no Rust, so install rustup when it's missing.
       - name: Install Rust (rust-toolchain.toml)
-        run: rustup show active-toolchain || rustup toolchain install
+        run: |
+          if ! command -v rustup >/dev/null; then
+            curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs |
+              sh -s -- -y --no-modify-path --profile minimal --default-toolchain none
+            echo "$HOME/.cargo/bin" >> "$GITHUB_PATH"
+            export PATH="$HOME/.cargo/bin:$PATH"
+          fi
+          rustup toolchain install
+          rustup show active-toolchain
       - run: cargo fmt --all --check
       - run: cargo clippy --all-targets --locked -- -D warnings
       - run: cargo test --locked
