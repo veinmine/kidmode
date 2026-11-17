@@ -199,6 +199,9 @@ nearest one along the view) shows one.
   that trusts you shows the heart.
 - A mob with several taming items (raw meat, flowers, fish, seeds) shows each
   in turn, one a second.
+- The bubble fades in (0.15 s), stays for 1.5 s after you look away (or until
+  you look back), then fades out (0.4 s). Looking back while it fades brings
+  it back from where it was.
 
 The bubble is drawn on your own screen only (a layer on the mob through
 Horizon's `native_mob_layer`), turned to face the camera and full bright, so

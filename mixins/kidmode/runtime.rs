@@ -5,13 +5,14 @@
 
 use std::collections::HashMap;
 use std::sync::Mutex;
+use std::time::{Duration, Instant};
 
 use std::sync::atomic::{AtomicBool, Ordering};
 
 /// The mod's id (its settings folder) and version. Its name and description
 /// are translated: the `kidmode.name` and `kidmode.description` keys below.
 pub const ID: &str = "kidmode";
-pub const VERSION: &str = "0.9.1";
+pub const VERSION: &str = "0.9.2";
 
 // ---------------------------------------------------------------------------
 // Translations
@@ -947,6 +948,58 @@ pub fn hint_item(items: &[&str], time: i64) -> String {
     format!("minecraft:{}", items[i])
 }
 
+/// How long the bubble takes to appear, how long it stays once the player
+/// looks away, and how long it then takes to fade out.
+pub const HINT_FADE_IN: Duration = Duration::from_millis(150);
+pub const HINT_LINGER: Duration = Duration::from_millis(1500);
+pub const HINT_FADE_OUT: Duration = Duration::from_millis(400);
+/// A frame gap longer than this means the player looked away (or the mob
+/// left the view) and came back.
+const HINT_GAP: Duration = Duration::from_millis(100);
+
+/// The bubbles showing, by mob id: when each started (shifted back on a
+/// return, to fade in from where it was) and when it was last looked at.
+static HINT_SEEN: Mutex<Option<HashMap<u32, (Instant, Instant)>>> = Mutex::new(None);
+
+/// How opaque mob `id`'s bubble is at `now`, 0 to 1, as the frame draws it
+/// (`looked`: the player looks at it now).
+pub fn hint_alpha(id: u32, looked: bool, now: Instant) -> f32 {
+    let Ok(mut seen) = HINT_SEEN.lock() else {
+        return f32::from(u8::from(looked));
+    };
+    let seen = seen.get_or_insert_with(HashMap::new);
+    let entry = seen.get(&id).copied();
+    let before = entry.map_or(0.0, |e| fade(e, now));
+    if looked {
+        let start = match entry {
+            Some((start, last)) if now.saturating_duration_since(last) <= HINT_GAP => start,
+            _ => now.checked_sub(HINT_FADE_IN.mul_f32(before)).unwrap_or(now),
+        };
+        if seen.len() >= IDS_CAP {
+            seen.clear();
+        }
+        seen.insert(id, (start, now));
+        return fade((start, now), now);
+    }
+    if entry.is_some() && before <= 0.0 {
+        seen.remove(&id);
+    }
+    before
+}
+
+/// A bubble's opacity at `now`: fading in from `start`, full until
+/// `HINT_LINGER` after `last`, then fading out.
+fn fade((start, last): (Instant, Instant), now: Instant) -> f32 {
+    let shown =
+        (last.saturating_duration_since(start).as_secs_f32() / HINT_FADE_IN.as_secs_f32()).min(1.0);
+    let away = now.saturating_duration_since(last);
+    if away <= HINT_LINGER {
+        return shown;
+    }
+    let out = (away - HINT_LINGER).as_secs_f32() / HINT_FADE_OUT.as_secs_f32();
+    (shown * (1.0 - out)).max(0.0)
+}
+
 /// The bubble, a pixel a character: `O` its outline, `W` its inside, `.`
 /// nothing. The cloud on top holds the item; the dots trail down to the head.
 pub const BUBBLE: [&str; 25] = [
@@ -1323,6 +1376,27 @@ mod tests {
         assert!(!may_hint("minecraft:wolf"));
         assert_eq!(hint("minecraft:wolf", 1, wild), None);
         TAMING_HINTS.set(true);
+    }
+
+    #[test]
+    fn hint_fades() {
+        let t0 = Instant::now();
+        let ms = |n: u64| t0 + Duration::from_millis(n);
+        assert_eq!(hint_alpha(900, false, ms(0)), 0.0);
+        assert_eq!(hint_alpha(900, true, ms(0)), 0.0);
+        assert!((hint_alpha(900, true, ms(75)) - 0.5).abs() < 0.01);
+        assert_eq!(hint_alpha(900, true, ms(150)), 1.0);
+        assert_eq!(hint_alpha(900, true, ms(200)), 1.0);
+        // Looked away: stays, then fades out.
+        assert_eq!(hint_alpha(900, false, ms(1000)), 1.0);
+        assert_eq!(hint_alpha(900, false, ms(1700)), 1.0);
+        assert!((hint_alpha(900, false, ms(1900)) - 0.5).abs() < 0.01);
+        // Looked back mid-fade: fades in again from there.
+        let back = hint_alpha(900, true, ms(1900));
+        assert!((back - 0.5).abs() < 0.02, "{back}");
+        assert_eq!(hint_alpha(900, true, ms(2000)), 1.0);
+        assert_eq!(hint_alpha(900, false, ms(2000 + 1500 + 400)), 0.0);
+        assert_eq!(hint_alpha(900, false, ms(5000)), 0.0);
     }
 
     #[test]

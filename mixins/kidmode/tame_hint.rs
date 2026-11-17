@@ -36,11 +36,17 @@ fn kidmode_tame_hint(
             .is_some_and(|owner| owner != game.own_uuid()),
     };
     let Some(hint) = k::hint(mob.kind, mob.id, state) else { return };
-    let Some((eye, dir)) = game.aim() else { return };
-    let Some((index, distance, _)) = game.mob_hit_within(k::HINT_DISTANCE) else { return };
-    if game.mobs[index].id != mob.id || game.clip_ray(eye, dir, distance).is_some() {
+    let looked = game.aim().is_some_and(|(eye, dir)| {
+        game.mob_hit_within(k::HINT_DISTANCE).is_some_and(|(index, distance, _)| {
+            game.mobs[index].id == mob.id && game.clip_ray(eye, dir, distance).is_none()
+        })
+    });
+    // Fades in, stays a moment after the player looks away, fades out.
+    let alpha = k::hint_alpha(mob.id, looked, std::time::Instant::now());
+    if alpha <= 0.0 {
         return;
     }
+    let first = draw.vertices_mut().len();
     let bounds = m.bounds();
     let height = (bounds.max_position().y - bounds.min_position().y) as f32;
     let px = k::BUBBLE_PIXEL;
@@ -134,4 +140,13 @@ fn kidmode_tame_hint(
         }
     }
     draw.pop();
+    // While fading: see-through, on the translucent item layer (the overlay is
+    // the layer's low 16 bits; the colour is 0xAABBGGRR).
+    if alpha < 1.0 {
+        for v in &mut draw.vertices_mut()[first..] {
+            v.layer = (v.layer & !0xffff) | horizon_client::gfx::TRANSLUCENT_ITEM_OVERLAY;
+            let a = ((v.color >> 24) as f32 * alpha) as u32;
+            v.color = (v.color & 0x00ff_ffff) | a << 24;
+        }
+    }
 }
