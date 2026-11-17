@@ -48,7 +48,7 @@ update. Terms vanilla has no word for are the mod's own choices, marked
 | Invulnerable Ender Dragon | Nieśmiertelny Smok Endu | **mod** + `entity.minecraft.ender_dragon` |
 | Always sunny | Zawsze słonecznie | **mod** |
 | Auto sleep | Automatyczny sen | **mod** |
-| Tame enemies for loot | Oswajanie wrogów | **mod**, shortened to fit the button |
+| Tame mobs for loot | Oswajanie stworzeń | **mod**, shortened to fit the button (until 0.9.2 "Tame enemies for loot", "Oswajanie wrogów") |
 | Taming hints | Podpowiedzi oswajania | **mod** |
 | ON / OFF | Wł. / Wył. | `options.on`, `options.off` |
 

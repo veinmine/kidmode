@@ -1,7 +1,9 @@
 // Before a level's mobs tick (`tick_creatures`): note which tameable mobs
-// carry the tamed tag, so the mob engine's hooks know them. A tamed mob never
+// carry the tamed tag, and which of vanilla's pets with loot are tamed the
+// vanilla way, so the mob engine's hooks know them. A tamed mob never
 // despawns (one tamed with `/tag` becomes persistent here). Players' games are
-// told through the synced attachment `kidmode:tamed`.
+// told through the synced attachment `kidmode:tamed` (vanilla's pets send
+// their own tame flag).
 fn kidmode_tame_scan(game: &mut crate::game::Game<'_>) {
     use crate::mobs::kidmode;
     if game.remote.is_some() || !kidmode::TAME_FOR_LOOT.on() {
@@ -19,18 +21,25 @@ fn kidmode_tame_scan(game: &mut crate::game::Game<'_>) {
     };
     for index in 0..game.mobs.len() {
         let m = &game.mobs[index];
-        if kidmode::tameable(&m.kind.id).is_none() {
+        let pet = kidmode::pet_loot(&m.kind.id).is_some();
+        if kidmode::tameable(&m.kind.id).is_none() && !pet {
             continue;
         }
         let id = m.id;
-        let tamed = game
-            .tags_of(crate::game::commands::Target::Mob(id))
-            .iter()
-            .any(|t| t == kidmode::TAMED_TAG);
+        let tamed = if pet {
+            m.extra.tame
+        } else {
+            game.tags_of(crate::game::commands::Target::Mob(id))
+                .iter()
+                .any(|t| t == kidmode::TAMED_TAG)
+        };
         let m = &mut game.mobs[index];
         kidmode::set_tamed(id, tamed, |n| m.random.next_int_bound(n).unwrap_or(0));
         if tamed {
             m.persistent = true;
+        }
+        if pet {
+            continue;
         }
         // Every player's game learns it through a synced attachment.
         let host: &mut dyn horizon_client::mod_api::Host = &mut *game;

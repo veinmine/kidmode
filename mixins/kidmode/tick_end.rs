@@ -20,13 +20,22 @@ fn kidmode_tick_end(
             count: 7,
         });
     }
-    if m.alive() && kidmode::tameable(&m.kind.id).is_some() {
+    if m.alive() && kidmode::loot_of(&m.kind.id).is_some() {
         let adult = !m.is_baby();
         let (id, kind) = (m.id, m.kind.id.clone());
         let random = &mut m.random;
         let tick = kidmode::tamed_tick(id, &kind, adult, |n| random.next_int_bound(n).unwrap_or(0));
         let at = [m.position.x, m.position.y, m.position.z];
-        if let Some(item) = tick.loot {
+        // A frog drops the froglight of its colour.
+        let frog = m.species() == crate::mobs::Species::Frog;
+        let loot = match tick.loot {
+            Some(_) if frog => {
+                let variant = crate::mobs::finalize::variant_name(m.species(), m.extra.variant);
+                Some(kidmode::frog_loot(variant).to_owned())
+            }
+            other => other,
+        };
+        if let Some(item) = loot {
             events.push(E::DropItem { mob: id, item: item.into(), count: 1, at });
         }
         if tick.sparkle {

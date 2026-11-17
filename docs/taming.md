@@ -1,6 +1,7 @@
-# Design: Tame enemies for loot
+# Design: Tame mobs for loot
 
-Status: agreed with veinmine on 2026-11-17, implemented in 0.7.0.
+Status: agreed with veinmine on 2026-11-17, implemented in 0.7.0. Every animal
+added on 2026-11-17 (0.10.0, list approved by veinmine).
 
 With Kid Mode, mobs are friendly and can be invulnerable, so killing them for
 their drops is out. This feature gives another way to get that loot: feed a
@@ -11,7 +12,7 @@ the way a chicken lays eggs.
 
 | Setting | File | Default |
 |---|---|---|
-| Tame enemies for loot (Polish: **Oswajanie wrogów**) | `tame_for_loot` | ON |
+| Tame mobs for loot (Polish: **Oswajanie stworzeń**; until 0.9.2 "Tame enemies for loot", "Oswajanie wrogów") | `tame_for_loot` | ON |
 
 ON by default because nothing changes until a player feeds a mob. With it OFF,
 feeding does nothing, already tamed mobs stop dropping loot and lose their
@@ -43,13 +44,58 @@ chicken-and-egg problem. One item can tame several mobs.
 | Hoglin | leather, raw porkchop | crimson fungus |
 | Ghast | ghast tear, gunpowder | snowball |
 | Phantom | phantom membrane | glow berries |
-| Cow | leather | golden carrot |
-| Chicken | feather | golden carrot |
+| Cow, mooshroom | leather, raw beef | golden carrot |
+| Chicken | feather, raw chicken | golden carrot |
+| Sheep | raw mutton | golden carrot |
+| Pig | raw porkchop | golden carrot |
+| Goat | nothing | golden carrot |
+| Rabbit | rabbit hide, raw rabbit | apple |
+| Polar bear | raw cod, raw salmon | raw cod or raw salmon |
+| Panda | bamboo | sugar cane |
+| Fox | sweet berries | raw chicken |
+| Bee | honeycomb | sugar |
+| Frog | froglight of its colour | spider eye |
+| Armadillo | nothing | apple |
+| Sniffer | nothing | moss block |
+| Camel | nothing | hay bale |
+| Strider | string | crimson fungus |
+| Bat | nothing | melon slice |
+| Squid | ink sac | kelp |
+| Glow squid | glow ink sac | kelp |
+| Dolphin | raw cod | kelp |
+| Cod, salmon, tropical fish, pufferfish | the fish itself, bone meal | kelp |
+| Turtle | seagrass, turtle scute | kelp |
+| Axolotl | nothing | kelp |
 
-Cow and chicken are here because with Invulnerable animals on (the default),
-leather and feathers can't be got any other way, and without them there are
-no books (so no enchanting) and no arrows. They drop no meat. The golden
-carrot doesn't clash with breeding (wheat and seeds stay breeding items).
+Cow and chicken came first (0.7.0) because with Invulnerable animals on (the
+default), leather and feathers can't be got any other way, and without them
+there are no books (so no enchanting) and no arrows. In 0.10.0 veinmine asked
+for every remaining animal to be tameable, even with no loot, and for the
+farm animals to drop their meat too.
+
+Animal taming items are never that animal's breeding food and don't clash
+with vanilla's uses on it (milking, shearing, bowls, buckets, dolphins' fish).
+A frog drops the froglight it would make by eating a magma cube: ochre
+(temperate), verdant (cold), pearlescent (warm). An armadillo and a sniffer
+drop nothing extra because they already shed scutes and dig up seeds.
+
+### Vanilla's pets
+
+Pets that vanilla already tames keep their vanilla taming (bone, fish, seeds,
+riding) and are not in the table above. Once tamed the vanilla way (their own
+tame flag) they drop loot like a Kid Mode mob, with sparkles:
+
+| Pet | Loot |
+|---|---|
+| Cat | string |
+| Parrot | feather |
+| Horse, donkey, mule, llama, trader llama | leather |
+| Skeleton horse | bone |
+| Zombie horse | rotten flesh |
+
+Wolves, ocelots and nautili drop nothing. Left out entirely: the tadpole (it
+grows into a frog, which can be tamed), the happy ghast (already a pet raised
+from a dried ghast), villagers, wandering traders and golems.
 
 Left out: the illagers, the bosses, and rare drops (wither skull, evoker's
 totem, a zombie's iron ingot, carrot and potato).
@@ -89,9 +135,10 @@ while the mob's chunk is loaded, as with eggs.
 
 ## Leads
 
-Every mob in the table above can be put on a lead, **tamed or not**, so that
-a mob can be led home and tamed there, or a tamed one moved. Vanilla doesn't
-allow leads on monsters. Leads work as usual otherwise: shears cut them, and
+Every enemy and neutral mob in the table above can be put on a lead, **tamed
+or not**, so that a mob can be led home and tamed there, or a tamed one moved.
+Vanilla doesn't allow leads on monsters. Animals keep vanilla's lead rules
+(so no leads on fish, squid or bats). Leads work as usual otherwise: shears cut them, and
 a lead breaks if pulled too far.
 
 To check in testing: a lead on a flyer (ghast, phantom) and on a mob that
@@ -135,7 +182,11 @@ Hook points found in Horizon's source (revision `9f42064c`):
   sending on (`hub.sync_attachments`) and resends the tamed mobs once.
 - **Loot and sparkles:** from the mob tick hook (`tick_end.rs`), which pushes
   `MobEvent::DropItem` and particle events, with a per-mob timer like
-  `egg_time`.
+  `egg_time`. A frog's froglight comes from its variant
+  (`mobs::finalize::variant_name`).
+- **Vanilla's pets:** the same scan hook counts a pet in `PET_LOOT` as tamed
+  when its `Extra.tame` is set (no tag, no synced attachment: vanilla sends
+  its tame flag itself).
 - **Hearts and smoke:** queued by the feeding hook and shown from the mob's
   next tick: during a player's turn the game has no LAN hub to send particles
   through, so particles sent there never reach the screen.
