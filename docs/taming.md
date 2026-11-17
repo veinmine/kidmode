@@ -63,8 +63,10 @@ taming items), so it's easy to change.
   has a 1 in 3 chance: smoke particles on a miss, hearts on success. The item
   is used up, except in creative.
 - A baby mob (baby zombie, baby hoglin and so on) can be tamed the same way.
-- Any player can tame a mob and any player can collect its loot. A tamed mob
-  has no owner.
+- Any player can tame a mob and any player can collect its loot or lead it.
+  Since 0.9.1 the mod remembers who tamed it (veinmine, 2026-11-17: only to
+  show their head in the taming-hint bubble to other players; it limits
+  nothing).
 - Taming an already tamed mob does nothing and doesn't use up the item.
 
 ## A tamed mob

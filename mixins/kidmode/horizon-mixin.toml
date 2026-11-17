@@ -1,6 +1,6 @@
 [mod]
 id = "kidmode"
-version = "0.9.0"
+version = "0.9.1"
 priority = 100
 
 # The commit it was built and tested on (Nightly 2026-11-13). Besides the native

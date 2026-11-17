@@ -182,7 +182,11 @@ The table is `TAMEABLE` in `mixins/kidmode/runtime.rs`; the design is in
 
 On by default. Look at a mob that can be tamed, from up to 8 blocks away with
 no block in between, and a thought bubble shows over its head: the item that
-tames it, or a heart once it is tamed. Only the mob under the crosshair (the
+tames it, or a heart once it is tamed. A Kid Mode mob someone else tamed shows
+that player's head instead (with their skin), so you can tell whose it is. A
+mob tamed with `/tag`, or before 0.9.1, has no known tamer and shows the heart
+to everyone. Vanilla's tamed mobs always show the heart (their owner isn't
+sent to players' games). Only the mob under the crosshair (the
 nearest one along the view) shows one.
 
 - **Kid Mode's tameable mobs:** the table above, while Tame enemies for loot
@@ -202,8 +206,10 @@ it reads at night too. The item is flattened onto the bubble, so it stays
 inside it from any angle, and drawn without the world's shading, in its
 inventory colours. The bubble sits above a mob's name when it has one.
 
-Every player sees the heart, on LAN and on servers too: the server sends each
+Every player sees this, on LAN and on servers too: the server sends each
 player's game a synced attachment, `kidmode:tamed`, on every mob the mod
-tamed (the `kidmode_tamed` tag itself isn't sent to players). Vanilla's tamed
+tamed, with its tamer's id, name and skin profile (the `kidmode_tamed` tag
+itself isn't sent to players). Knowing the tamer changes nothing else: anyone
+can still collect a tamed mob's loot and lead it. Vanilla's tamed
 state is sent the usual way. The lists are `VANILLA_TAMEABLE` and `TAMEABLE` in
 `mixins/kidmode/runtime.rs`, the drawing is `mixins/kidmode/tame_hint.rs`.

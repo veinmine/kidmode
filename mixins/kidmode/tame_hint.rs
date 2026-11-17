@@ -1,6 +1,7 @@
 // `native_mob_layer`: over the tameable mob the player looks at (nearest along
 // the view, within `HINT_DISTANCE`, no block between), a thought bubble facing
-// the camera with the item that tames it, or a heart once it is tamed.
+// the camera with the item that tames it, a heart once it is tamed, or the
+// head of the player who tamed it when that is someone else.
 fn kidmode_tame_hint(
     game: &crate::game::Game<'_>,
     mob: &NativeMobRender<'_>,
@@ -14,17 +15,25 @@ fn kidmode_tame_hint(
     if m.removed || !m.alive() {
         return;
     }
+    let synced = game.remote.as_ref().and_then(|r| {
+        r.attachments
+            .get(&horizon_client::mod_api::Holder::Entity(mob.id))?
+            .clone()
+            .get_existing(&crate::game::kidmode_sync::TAMED)
+            .ok()
+            .flatten()
+    });
     let state = k::TameState {
         tame: m.extra.tame,
         trusting: m.extra.trusting,
         angry: m.extra.anger > 0,
         baby: m.is_baby(),
         // What the server synced (on LAN, a server, and single player alike).
-        synced_tamed: game.remote.as_ref().is_some_and(|r| {
-            r.attachments
-                .get(&horizon_client::mod_api::Holder::Entity(mob.id))
-                .is_some_and(|a| a.has(&crate::game::kidmode_sync::TAMED))
-        }),
+        synced_tamed: synced.is_some(),
+        tamed_by_other: synced
+            .as_ref()
+            .and_then(|t| t.owner)
+            .is_some_and(|owner| owner != game.own_uuid()),
     };
     let Some(hint) = k::hint(mob.kind, mob.id, state) else { return };
     let Some((eye, dir)) = game.aim() else { return };
@@ -78,6 +87,31 @@ fn kidmode_tame_hint(
     };
     pixels(k::bubble_runs(), [-cx, -cy], 0.0);
     match hint {
+        k::Hint::TamedBy => {
+            // The tamer's head, from the profile (with their skin) the server
+            // synced; without one, from their id and name.
+            let owner = synced.as_ref().and_then(|t| t.owner).unwrap_or_default();
+            let profile = horizon_protocol::item::Profile {
+                name: synced.as_ref().and_then(|t| t.owner_name.clone()),
+                id: Some(owner),
+                properties: Vec::new(),
+                skin: Default::default(),
+            };
+            let mut head = horizon_client::items::ItemStack::new("minecraft:player_head", 1);
+            let tag = synced
+                .as_ref()
+                .and_then(|t| t.profile.clone())
+                .unwrap_or_else(|| horizon_client::item_sync::profile_tag(&profile));
+            head.data_mut().set_other("minecraft:profile", Some(tag));
+            let size = k::BUBBLE_ICON * px;
+            draw.translate([0.0, 0.0, 0.02]);
+            draw.scale([size, size, size * 0.02]);
+            let item = game.resolve_item(&head, horizon_assets::item_model::DisplayContext::Gui, None, 0);
+            if !item.is_empty() {
+                let pose = draw.pose();
+                game.submit_item_unlit(&item, pose, full_bright, draw.vertices_mut());
+            }
+        }
         k::Hint::Tamed => {
             let (hw, hh) = (k::HEART[0].len() as f32, k::HEART.len() as f32);
             pixels(k::heart_runs(), [-hw / 2.0, -hh / 2.0], 0.01);

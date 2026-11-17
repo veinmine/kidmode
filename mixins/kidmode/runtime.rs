@@ -11,7 +11,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 /// The mod's id (its settings folder) and version. Its name and description
 /// are translated: the `kidmode.name` and `kidmode.description` keys below.
 pub const ID: &str = "kidmode";
-pub const VERSION: &str = "0.9.0";
+pub const VERSION: &str = "0.9.1";
 
 // ---------------------------------------------------------------------------
 // Translations
@@ -885,6 +885,8 @@ pub struct TameState {
     pub baby: bool,
     /// The server says the mod tamed it (its synced `kidmode:tamed`).
     pub synced_tamed: bool,
+    /// It says another player tamed it (not the one looking).
+    pub tamed_by_other: bool,
 }
 
 /// What a mob's bubble shows.
@@ -892,8 +894,10 @@ pub struct TameState {
 pub enum Hint {
     /// Not tamed yet: the items that tame it, in turn.
     Items(&'static [&'static str]),
-    /// Tamed: a heart.
+    /// Tamed: a heart (to its tamer, or when nobody is known as its tamer).
     Tamed,
+    /// Tamed by another player: their head.
+    TamedBy,
 }
 
 /// The bubble over mob `id` of type `kind`, or None when it shows none
@@ -924,7 +928,9 @@ pub fn hint(kind: &str, id: u32, state: TameState) -> Option<Hint> {
         return None;
     }
     let entry = tameable(kind)?;
-    Some(if state.synced_tamed || tamed(id) {
+    Some(if state.tamed_by_other {
+        Hint::TamedBy
+    } else if state.synced_tamed || tamed(id) {
         Hint::Tamed
     } else {
         Hint::Items(entry.food)
@@ -1275,6 +1281,18 @@ mod tests {
             ..wild
         };
         assert_eq!(hint("minecraft:enderman", 600, synced), Some(Hint::Tamed));
+        let theirs = TameState {
+            tamed_by_other: true,
+            ..synced
+        };
+        assert_eq!(hint("minecraft:enderman", 600, theirs), Some(Hint::TamedBy));
+        // Vanilla mobs show the heart: their owner isn't sent to players.
+        let tame_wolf = TameState {
+            tame: true,
+            tamed_by_other: true,
+            ..wild
+        };
+        assert_eq!(hint("minecraft:wolf", 1, tame_wolf), Some(Hint::Tamed));
         assert_eq!(hint("minecraft:villager", 600, wild), None);
 
         let items = ["cod", "salmon"];

@@ -38,7 +38,7 @@ fn kidmode_tame_scan(game: &mut crate::game::Game<'_>) {
         let sync = &crate::game::kidmode_sync::TAMED;
         let sent = sync.has(&mut *host, holder).unwrap_or(tamed);
         if tamed && !sent {
-            let _ = sync.set(host, holder, true);
+            let _ = sync.set(host, holder, crate::game::kidmode_sync::Tamed::default());
         } else if !tamed && sent {
             let _ = sync.remove(host, holder);
         } else if tamed && resend {

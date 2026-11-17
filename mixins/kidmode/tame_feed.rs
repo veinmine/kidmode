@@ -34,6 +34,19 @@ fn kidmode_tame_feed(
         kidmode::set_tamed(id, true, |n| {
             game.mobs[index].random.next_int_bound(n).unwrap_or(0)
         });
+        // Who tamed it, for every player's game (their head in its bubble).
+        let tamer = game.native_acting_player();
+        let profile = tamer.as_ref().and_then(|p| {
+            let head = game.native_player_head(p.uuid);
+            head.data().and_then(|d| d.other("minecraft:profile")).cloned()
+        });
+        let tamed = crate::game::kidmode_sync::Tamed {
+            owner: tamer.as_ref().map(|p| p.uuid),
+            owner_name: tamer.map(|p| p.name),
+            profile,
+        };
+        let host: &mut dyn horizon_client::mod_api::Host = &mut *game;
+        let _ = crate::game::kidmode_sync::TAMED.set(host, horizon_client::mod_api::Holder::Entity(id), tamed);
     }
     let creative = game.creative;
     game.consume_held();
