@@ -24,3 +24,62 @@ helper = "list.rs"
 bindings = [
   { name = "mods", ty = "&mut Vec<crate::game::native_hooks::NativeMod>", value = "&mut *mods" },
 ]
+
+# The settings page under Options > Mods > Mord.
+[[injection]]
+id = "settings"
+kind = "HEAD"
+target = "horizon_client::game::native_hooks::Game<'_>::native_settings"
+helper = "settings.rs"
+bindings = [
+  { name = "game", ty = "&mut crate::game::Game<'_>", value = "&mut *self" },
+  { name = "mod_id", ty = "&str", value = "mod_id" },
+  { name = "buttons", ty = "&mut Vec<String>", value = "&mut *buttons" },
+]
+
+[[injection]]
+id = "click"
+kind = "HEAD"
+target = "horizon_client::game::native_hooks::Game<'_>::native_settings_click"
+helper = "click.rs"
+bindings = [
+  { name = "game", ty = "&mut crate::game::Game<'_>", value = "&mut *self" },
+  { name = "mod_id", ty = "&str", value = "mod_id" },
+  { name = "button", ty = "usize", value = "button" },
+]
+
+# Reads the setting on the server side before mobs tick.
+[[injection]]
+id = "load"
+kind = "HEAD"
+target = "horizon_client::game::native_hooks::Game<'_>::native_server_tick"
+helper = "load.rs"
+bindings = [
+  { name = "game", ty = "&mut crate::game::Game<'_>", value = "&mut *self" },
+]
+
+# Friendly enemies: hostile mobs may not target a player...
+[[injection]]
+id = "target"
+kind = "HEAD"
+target = "horizon_client::game::native_hooks::Game<'_>::native_living_change_target"
+helper = "target.rs"
+bindings = [
+  { name = "entity", ty = "u32", value = "entity" },
+  { name = "kind", ty = "&str", value = "kind" },
+  { name = "target", ty = "Option<u128>", value = "target" },
+  { name = "cancel", ty = "&mut bool", value = "&mut *cancel" },
+]
+
+# ...and a hit from one on a player is cancelled.
+[[injection]]
+id = "damage"
+kind = "HEAD"
+target = "horizon_client::game::native_hooks::Game<'_>::native_living_incoming_damage_v3"
+helper = "damage.rs"
+bindings = [
+  { name = "victim_uuid", ty = "Option<u128>", value = "victim_uuid" },
+  { name = "attacker", ty = "Option<u32>", value = "attacker" },
+  { name = "attacker_uuid", ty = "Option<u128>", value = "attacker_uuid" },
+  { name = "cancel", ty = "&mut bool", value = "&mut *cancel" },
+]

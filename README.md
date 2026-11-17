@@ -11,3 +11,5 @@ horizon-launcher native-build mixins/mord --trust-native-code        # build the
 `mixins/mord/runtime.rs` is both the Cargo library and the module added to the
 game as `crate::game::mord`; `list.rs` hooks the native `native_mods` point to
 list the mod in Options > Mods. See https://playhorizon.dev/docs/make-a-mod.
+
+Features and their settings are listed in [docs/features.md](docs/features.md).
