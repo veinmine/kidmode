@@ -12,7 +12,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 /// The mod's id (its settings folder) and version. Its name and description
 /// are translated: the `kidmode.name` and `kidmode.description` keys below.
 pub const ID: &str = "kidmode";
-pub const VERSION: &str = "0.9.2";
+pub const VERSION: &str = "0.10.0";
 
 // ---------------------------------------------------------------------------
 // Translations
@@ -53,7 +53,7 @@ pub const EN_US: &[(&str, &str)] = &[
     ),
     ("kidmode.setting.always_sunny", "Always sunny"),
     ("kidmode.setting.auto_sleep", "Auto sleep"),
-    ("kidmode.setting.tame_for_loot", "Tame enemies for loot"),
+    ("kidmode.setting.tame_for_loot", "Tame mobs for loot"),
     ("kidmode.setting.taming_hints", "Taming hints"),
     ("options.on", "ON"),
     ("options.off", "OFF"),
@@ -90,7 +90,7 @@ pub const PL_PL: &[(&str, &str)] = &[
     ),
     ("kidmode.setting.always_sunny", "Zawsze słonecznie"),
     ("kidmode.setting.auto_sleep", "Automatyczny sen"),
-    ("kidmode.setting.tame_for_loot", "Oswajanie wrogów"),
+    ("kidmode.setting.tame_for_loot", "Oswajanie stworzeń"),
     ("kidmode.setting.taming_hints", "Podpowiedzi oswajania"),
     ("options.on", "Wł."),
     ("options.off", "Wył."),
@@ -524,7 +524,7 @@ pub fn protected_id(entity: u32) -> bool {
 }
 
 // ---------------------------------------------------------------------------
-// Tame enemies for loot (docs/taming.md)
+// Tame mobs for loot (docs/taming.md)
 // ---------------------------------------------------------------------------
 // Feeding a mob its taming item may tame it (1 in 3). A tamed mob keeps the
 // entity tag `kidmode_tamed` (saved with the world); the game copies the tagged
@@ -666,17 +666,171 @@ pub const TAMEABLE: &[Tameable] = &[
         loot: &["phantom_membrane"],
         food: &["glow_berries"],
     },
+    // Animals (an empty loot list: tamed for company only).
     Tameable {
-        mobs: &["cow"],
-        loot: &["leather"],
+        mobs: &["cow", "mooshroom"],
+        loot: &["leather", "beef"],
         food: &["golden_carrot"],
     },
     Tameable {
         mobs: &["chicken"],
-        loot: &["feather"],
+        loot: &["feather", "chicken"],
         food: &["golden_carrot"],
     },
+    Tameable {
+        mobs: &["sheep"],
+        loot: &["mutton"],
+        food: &["golden_carrot"],
+    },
+    Tameable {
+        mobs: &["pig"],
+        loot: &["porkchop"],
+        food: &["golden_carrot"],
+    },
+    Tameable {
+        mobs: &["goat"],
+        loot: &[],
+        food: &["golden_carrot"],
+    },
+    Tameable {
+        mobs: &["rabbit"],
+        loot: &["rabbit_hide", "rabbit"],
+        food: &["apple"],
+    },
+    Tameable {
+        mobs: &["polar_bear"],
+        loot: &["cod", "salmon"],
+        food: &["cod", "salmon"],
+    },
+    Tameable {
+        mobs: &["panda"],
+        loot: &["bamboo"],
+        food: &["sugar_cane"],
+    },
+    Tameable {
+        mobs: &["fox"],
+        loot: &["sweet_berries"],
+        food: &["chicken"],
+    },
+    Tameable {
+        mobs: &["bee"],
+        loot: &["honeycomb"],
+        food: &["sugar"],
+    },
+    // The game picks the froglight of the frog's colour (`frog_loot`).
+    Tameable {
+        mobs: &["frog"],
+        loot: &["ochre_froglight"],
+        food: &["spider_eye"],
+    },
+    Tameable {
+        mobs: &["armadillo"],
+        loot: &[],
+        food: &["apple"],
+    },
+    Tameable {
+        mobs: &["sniffer"],
+        loot: &[],
+        food: &["moss_block"],
+    },
+    Tameable {
+        mobs: &["camel"],
+        loot: &[],
+        food: &["hay_block"],
+    },
+    Tameable {
+        mobs: &["strider"],
+        loot: &["string"],
+        food: &["crimson_fungus"],
+    },
+    Tameable {
+        mobs: &["bat"],
+        loot: &[],
+        food: &["melon_slice"],
+    },
+    Tameable {
+        mobs: &["squid"],
+        loot: &["ink_sac"],
+        food: &["kelp"],
+    },
+    Tameable {
+        mobs: &["glow_squid"],
+        loot: &["glow_ink_sac"],
+        food: &["kelp"],
+    },
+    Tameable {
+        mobs: &["dolphin"],
+        loot: &["cod"],
+        food: &["kelp"],
+    },
+    Tameable {
+        mobs: &["cod"],
+        loot: &["cod", "bone_meal"],
+        food: &["kelp"],
+    },
+    Tameable {
+        mobs: &["salmon"],
+        loot: &["salmon", "bone_meal"],
+        food: &["kelp"],
+    },
+    Tameable {
+        mobs: &["tropical_fish"],
+        loot: &["tropical_fish", "bone_meal"],
+        food: &["kelp"],
+    },
+    Tameable {
+        mobs: &["pufferfish"],
+        loot: &["pufferfish", "bone_meal"],
+        food: &["kelp"],
+    },
+    Tameable {
+        mobs: &["turtle"],
+        loot: &["seagrass", "turtle_scute"],
+        food: &["kelp"],
+    },
+    Tameable {
+        mobs: &["axolotl"],
+        loot: &[],
+        food: &["kelp"],
+    },
 ];
+
+/// Vanilla's pets that drop loot once tamed the vanilla way (their tame flag),
+/// and what they drop. Wolves and ocelots drop nothing.
+pub const PET_LOOT: &[(&[&str], &[&str])] = &[
+    (&["cat"], &["string"]),
+    (&["parrot"], &["feather"]),
+    (
+        &["horse", "donkey", "mule", "llama", "trader_llama"],
+        &["leather"],
+    ),
+    (&["skeleton_horse"], &["bone"]),
+    (&["zombie_horse"], &["rotten_flesh"]),
+];
+
+/// The loot of vanilla pet type `kind` once tamed, if it drops any.
+pub fn pet_loot(kind: &str) -> Option<&'static [&'static str]> {
+    let name = kind.strip_prefix("minecraft:")?;
+    PET_LOOT
+        .iter()
+        .find(|(mobs, _)| mobs.contains(&name))
+        .map(|(_, loot)| *loot)
+}
+
+/// What a tamed mob of type `kind` drops: Kid Mode's table or a vanilla pet's.
+pub fn loot_of(kind: &str) -> Option<&'static [&'static str]> {
+    tameable(kind).map(|t| t.loot).or_else(|| pet_loot(kind))
+}
+
+/// The froglight a tamed frog of variant `variant` drops, as a frog eating a
+/// magma cube makes: ochre (temperate), verdant (cold), pearlescent (warm).
+pub fn frog_loot(variant: &str) -> &'static str {
+    match variant.strip_prefix("minecraft:").unwrap_or(variant) {
+        "cold" => "minecraft:verdant_froglight",
+        "warm" => "minecraft:pearlescent_froglight",
+        _ => "minecraft:ochre_froglight",
+    }
+}
 
 /// The taming entry of mob type `kind`, if it can be tamed.
 pub fn tameable(kind: &str) -> Option<&'static Tameable> {
@@ -698,15 +852,16 @@ pub fn leftover(item: &str) -> Option<&'static str> {
 }
 
 /// Whether mob type `kind` can be put on a lead because of this feature.
+/// Animals keep vanilla's leads (no lead on a fish, squid or bat).
 pub fn leashable(kind: &str) -> bool {
-    TAME_FOR_LOOT.on() && tameable(kind).is_some()
+    TAME_FOR_LOOT.on() && tameable(kind).is_some() && !is_animal(kind)
 }
 
 /// Whether a lead on mob type `kind` hangs from the middle of its body (half
-/// its height, on its centre) instead of vanilla's eye height. Cows and
-/// chickens keep vanilla's.
+/// its height, on its centre) instead of vanilla's eye height. Animals keep
+/// vanilla's.
 pub fn lead_at_middle(kind: &str) -> bool {
-    leashable(kind) && !matches!(kind, "minecraft:cow" | "minecraft:chicken")
+    leashable(kind)
 }
 
 /// Feeding results waiting for the mob's next tick to show their hearts
@@ -809,10 +964,9 @@ pub fn tamed_tick(id: u32, kind: &str, adult: bool, mut roll: impl FnMut(i32) ->
         timers.loot -= 1;
         if timers.loot <= 0 {
             timers.loot = LOOT_MIN + roll(LOOT_SPREAD);
-            if let Some(entry) = tameable(kind) {
-                let i =
-                    roll(entry.loot.len() as i32).clamp(0, entry.loot.len() as i32 - 1) as usize;
-                out.loot = Some(format!("minecraft:{}", entry.loot[i]));
+            if let Some(loot) = loot_of(kind).filter(|l| !l.is_empty()) {
+                let i = roll(loot.len() as i32).clamp(0, loot.len() as i32 - 1) as usize;
+                out.loot = Some(format!("minecraft:{}", loot[i]));
             }
         }
     }
@@ -1251,10 +1405,35 @@ mod tests {
         assert!(!tames("minecraft:villager", "minecraft:beef"));
         assert!(!tames("minecraft:zombie", "beef"));
         assert!(leashable("minecraft:ghast") && !leashable("minecraft:villager"));
+        assert!(tames("minecraft:sheep", "minecraft:golden_carrot"));
+        assert!(tames("minecraft:dolphin", "minecraft:kelp"));
+        assert!(!tames("minecraft:sheep", "minecraft:wheat"));
+        assert!(!tames("minecraft:wolf", "minecraft:golden_carrot"));
+        // Animals keep vanilla's leads.
+        assert!(!leashable("minecraft:cod") && !leashable("minecraft:cow"));
+        assert_eq!(loot_of("minecraft:cow"), Some(&["leather", "beef"][..]));
+        assert_eq!(loot_of("minecraft:cat"), Some(&["string"][..]));
+        assert_eq!(loot_of("minecraft:goat"), Some(&[][..]));
+        assert_eq!(loot_of("minecraft:wolf"), None);
+        assert_eq!(
+            frog_loot("minecraft:warm"),
+            "minecraft:pearlescent_froglight"
+        );
+        assert_eq!(frog_loot("minecraft:cold"), "minecraft:verdant_froglight");
+        assert_eq!(
+            frog_loot("minecraft:temperate"),
+            "minecraft:ochre_froglight"
+        );
+        for (mobs, loot) in PET_LOOT {
+            assert!(!loot.is_empty());
+            for m in *mobs {
+                assert!(tameable(&format!("minecraft:{m}")).is_none(), "{m} in both");
+            }
+        }
         assert_eq!(leftover("minecraft:milk_bucket"), Some("minecraft:bucket"));
         assert_eq!(leftover("minecraft:beef"), None);
         for t in TAMEABLE {
-            assert!(!t.loot.is_empty() && !t.food.is_empty());
+            assert!(!t.food.is_empty());
             for m in t.mobs {
                 assert_eq!(
                     TAMEABLE.iter().filter(|o| o.mobs.contains(m)).count(),
@@ -1281,6 +1460,17 @@ mod tests {
         for _ in 0..LOOT_MIN + 1 {
             assert_eq!(tamed_tick(501, "minecraft:zombie", false, |_| 0).loot, None);
         }
+        // A tamed animal with nothing to drop drops nothing.
+        set_tamed(502, true, |_| 0);
+        for _ in 0..LOOT_MIN + 1 {
+            assert_eq!(tamed_tick(502, "minecraft:goat", true, |_| 0).loot, None);
+        }
+        set_tamed(503, true, |_| 0);
+        let mut loot = None;
+        for _ in 0..LOOT_MIN {
+            loot = tamed_tick(503, "minecraft:horse", true, |_| 0).loot;
+        }
+        assert_eq!(loot.as_deref(), Some("minecraft:leather"));
         set_tamed(500, false, |_| 0);
         assert!(!tamed(500));
         assert_eq!(

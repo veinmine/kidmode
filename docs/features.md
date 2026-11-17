@@ -20,7 +20,7 @@ and Polish (**Tryb dla dzieci**). The Polish terms are listed in
 | [Invulnerable Ender Dragon](#invulnerable-ender-dragon) | Invulnerable Ender Dragon (`invulnerable_ender_dragon`) | OFF |
 | [Always sunny](#always-sunny) | Always sunny (`always_sunny`) | OFF |
 | [Auto sleep](#auto-sleep) | Auto sleep (`auto_sleep`) | OFF |
-| [Tame enemies for loot](#tame-enemies-for-loot) | Tame enemies for loot (`tame_for_loot`) | ON |
+| [Tame mobs for loot](#tame-mobs-for-loot) | Tame mobs for loot (`tame_for_loot`) | ON |
 | [Taming hints](#taming-hints) | Taming hints (`taming_hints`) | ON |
 
 ## Invulnerable player
@@ -131,7 +131,7 @@ sleeps: the clock jumps, rain clears if the weather cycle runs, and the night
 counts as rest, so phantoms don't come. Only in the Overworld, and only when
 the `advance_time` game rule is on.
 
-## Tame enemies for loot
+## Tame mobs for loot
 
 On by default, and nothing changes until a player feeds a mob. Since mobs here
 can't be killed for their drops, a mob fed its taming item may be tamed (1 in
@@ -145,9 +145,9 @@ and a heart in its thought bubble (see Taming hints), and carries the entity tag
 `kidmode_tamed` (`/tag <mob> add kidmode_tamed` tames one too). Any player can tame
 a mob and collect its loot.
 
-Every mob in the table can be put on a lead, tamed or not, to bring it home.
-The lead hangs from the centre of its body rather than its head (cows and
-chickens keep vanilla's). A tamed enderman or shulker never teleports, so it
+Every enemy and neutral mob in the table can be put on a lead, tamed or not,
+to bring it home. The lead hangs from the centre of its body rather than its
+head. Animals keep vanilla's leads (none on fish, squid or bats). A tamed enderman or shulker never teleports, so it
 doesn't break its lead.
 
 | Mob | Loot | Tame with |
@@ -170,12 +170,38 @@ doesn't break its lead.
 | Hoglin | leather, raw porkchop | crimson fungus |
 | Ghast | ghast tear, gunpowder | snowball |
 | Phantom | phantom membrane | glow berries |
-| Cow | leather | golden carrot |
-| Chicken | feather | golden carrot |
+| Cow, mooshroom | leather, raw beef | golden carrot |
+| Chicken | feather, raw chicken (eggs as usual) | golden carrot |
+| Sheep | raw mutton (shear for wool as usual) | golden carrot |
+| Pig | raw porkchop | golden carrot |
+| Goat | nothing | golden carrot |
+| Rabbit | rabbit hide, raw rabbit | apple |
+| Polar bear | raw cod, raw salmon | raw cod or salmon |
+| Panda | bamboo | sugar cane |
+| Fox | sweet berries | raw chicken |
+| Bee | honeycomb | sugar |
+| Frog | froglight of its colour (ochre, verdant, pearlescent) | spider eye |
+| Armadillo | nothing (it sheds scutes as usual) | apple |
+| Sniffer | nothing (it digs up seeds as usual) | moss block |
+| Camel | nothing | hay bale |
+| Strider | string | crimson fungus |
+| Bat | nothing | melon slice |
+| Squid | ink sac | kelp |
+| Glow squid | glow ink sac | kelp |
+| Dolphin | raw cod | kelp |
+| Cod, salmon, tropical fish, pufferfish | the fish itself, bone meal | kelp |
+| Turtle | seagrass, turtle scute | kelp |
+| Axolotl | nothing | kelp |
+
+Vanilla's pets keep their vanilla taming and, once tamed, drop loot the same
+way (adults, every 5 to 10 minutes, with sparkles): cat (string), parrot
+(feather), horse, donkey, mule, llama and trader llama (leather), skeleton
+horse (bone), zombie horse (rotten flesh). Wolves, ocelots and nautili drop
+nothing. Left out: the tadpole (it grows into a frog) and the happy ghast.
 
 With the setting off, feeding does nothing, tamed mobs stop dropping loot and
 count as untamed, and leads work as in vanilla; they keep their tag.
-The table is `TAMEABLE` in `mixins/kidmode/runtime.rs`; the design is in
+The tables are `TAMEABLE` and `PET_LOOT` in `mixins/kidmode/runtime.rs`; the design is in
 [taming.md](taming.md).
 
 ## Taming hints
@@ -189,7 +215,7 @@ to everyone. Vanilla's tamed mobs always show the heart (their owner isn't
 sent to players' games). Only the mob under the crosshair (the
 nearest one along the view) shows one.
 
-- **Kid Mode's tameable mobs:** the table above, while Tame enemies for loot
+- **Kid Mode's tameable mobs:** the table above, while Tame mobs for loot
   is on.
 - **Vanilla's tameable mobs:** wolf (bone), cat and ocelot (raw cod or
   salmon), parrot (seeds: wheat, melon, pumpkin, beetroot, torchflower, or a
