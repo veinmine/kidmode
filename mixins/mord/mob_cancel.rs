@@ -1,7 +1,7 @@
 // A friendly mob doesn't start this (an enderman's stare anger, a piglin's
 // anger at a looted chest or mined gold).
 fn mord_mob_cancel(m: &crate::mobs::Mob) -> core::ops::ControlFlow<()> {
-    if crate::mobs::mord::friendly_to_players(&m.kind.id) {
+    if crate::mobs::mord::friendly(m.id, &m.kind.id) {
         core::ops::ControlFlow::Break(())
     } else {
         core::ops::ControlFlow::Continue(())

@@ -1,5 +1,5 @@
 // `Mob.canAttack(player)`: a friendly mob may never attack a player, so it
 // never targets one, never takes revenge on one and drops one it had.
 fn mord_spares(value: bool, m: &crate::mobs::Mob) -> bool {
-    value || crate::mobs::mord::friendly_to_players(&m.kind.id)
+    value || crate::mobs::mord::friendly(m.id, &m.kind.id)
 }

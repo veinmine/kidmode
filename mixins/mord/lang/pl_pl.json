@@ -10,6 +10,9 @@
   "mord.setting.invulnerable_ender_dragon": "Nieśmiertelny Smok Endu",
   "mord.setting.always_sunny": "Zawsze słonecznie",
   "mord.setting.auto_sleep": "Automatyczny sen",
+  "mord.setting.tame_for_loot": "Oswajanie wrogów",
+  "mord.tamed": "Oswojony %s",
+  "mord.tamed.feminine": "Oswojona %s",
   "options.on": "Wł.",
   "options.off": "Wył."
 }

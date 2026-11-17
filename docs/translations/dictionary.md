@@ -48,6 +48,8 @@ update. Terms vanilla has no word for are the mod's own choices, marked
 | Invulnerable Ender Dragon | Nieśmiertelny Smok Endu | **mod** + `entity.minecraft.ender_dragon` |
 | Always sunny | Zawsze słonecznie | **mod** |
 | Auto sleep | Automatyczny sen | **mod** |
+| Tame enemies for loot | Oswajanie wrogów | **mod**, shortened to fit the button |
+| Tame zombie (a tamed mob's name) | Oswojony zombie; Oswojona wiedźma / kostka magmy / krowa / kura | **mod** + `entity.minecraft.<mob>`, the adjective agrees with the mob |
 | ON / OFF | Wł. / Wył. | `options.on`, `options.off` |
 
 ## General terms

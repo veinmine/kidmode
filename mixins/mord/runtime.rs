@@ -11,7 +11,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 /// The mod's id (its settings folder) and version. Its name and description
 /// are translated: the `mord.name` and `mord.description` keys below.
 pub const ID: &str = "mord";
-pub const VERSION: &str = "0.6.0";
+pub const VERSION: &str = "0.7.0";
 
 // ---------------------------------------------------------------------------
 // Translations
@@ -46,6 +46,9 @@ pub const EN_US: &[(&str, &str)] = &[
     ),
     ("mord.setting.always_sunny", "Always sunny"),
     ("mord.setting.auto_sleep", "Auto sleep"),
+    ("mord.setting.tame_for_loot", "Tame enemies for loot"),
+    ("mord.tamed", "Tame %s"),
+    ("mord.tamed.feminine", "Tame %s"),
     ("options.on", "ON"),
     ("options.off", "OFF"),
 ];
@@ -81,6 +84,9 @@ pub const PL_PL: &[(&str, &str)] = &[
     ),
     ("mord.setting.always_sunny", "Zawsze słonecznie"),
     ("mord.setting.auto_sleep", "Automatyczny sen"),
+    ("mord.setting.tame_for_loot", "Oswajanie wrogów"),
+    ("mord.tamed", "Oswojony %s"),
+    ("mord.tamed.feminine", "Oswojona %s"),
     ("options.on", "Wł."),
     ("options.off", "Wył."),
 ];
@@ -181,9 +187,10 @@ pub static INVULNERABLE_DRAGON: Setting = Setting::new("invulnerable_ender_drago
 pub static INVULNERABLE_PLAYER: Setting = Setting::new("invulnerable_player", true);
 pub static ALWAYS_SUNNY: Setting = Setting::new("always_sunny", false);
 pub static AUTO_SLEEP: Setting = Setting::new("auto_sleep", false);
+pub static TAME_FOR_LOOT: Setting = Setting::new("tame_for_loot", true);
 
 /// The settings page, in order: button `i` toggles `SETTINGS[i]`.
-pub static SETTINGS: [&Setting; 9] = [
+pub static SETTINGS: [&Setting; 10] = [
     &INVULNERABLE_PLAYER,
     &FRIENDLY_ENEMIES,
     &FRIENDLY_NEUTRAL,
@@ -193,6 +200,7 @@ pub static SETTINGS: [&Setting; 9] = [
     &INVULNERABLE_DRAGON,
     &ALWAYS_SUNNY,
     &AUTO_SLEEP,
+    &TAME_FOR_LOOT,
 ];
 
 // ---------------------------------------------------------------------------
@@ -365,6 +373,12 @@ pub fn friendly_to_players(kind: &str) -> bool {
     (FRIENDLY_ENEMIES.on() && is_hostile(kind)) || (FRIENDLY_NEUTRAL.on() && is_neutral(kind))
 }
 
+/// Whether mob `id` of type `kind` may not attack players: its type is
+/// friendly, or it is tamed.
+pub fn friendly(id: u32, kind: &str) -> bool {
+    friendly_to_players(kind) || tamed(id)
+}
+
 /// Harmful effects a mob can put on the player directly (not through a
 /// projectile). Helpful ones (a dolphin's grace) are kept.
 pub const HARMFUL_EFFECTS: &[&str] = &[
@@ -385,6 +399,11 @@ pub fn spares_mobs(kind: &str) -> bool {
     !FRIENDLY_FIGHT_MOBS.on() && friendly_to_players(kind)
 }
 
+/// The same for mob `id`, which also counts when tamed.
+pub fn spares_mobs_of(id: u32, kind: &str) -> bool {
+    !FRIENDLY_FIGHT_MOBS.on() && friendly(id, kind)
+}
+
 /// The mob whose tick is running on this thread, as `Mob::tick` started it.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Ticking {
@@ -400,12 +419,12 @@ thread_local! {
     static TICKING: std::cell::RefCell<Vec<Ticking>> = const { std::cell::RefCell::new(Vec::new()) };
 }
 
-/// Mob type `kind` starts its tick with `len` events already queued.
-pub fn tick_start(kind: &str, len: usize) {
+/// Mob `id` of type `kind` starts its tick with `len` events already queued.
+pub fn tick_start(id: u32, kind: &str, len: usize) {
     let t = Ticking {
         from: len,
-        friendly: friendly_to_players(kind),
-        spares_mobs: spares_mobs(kind),
+        friendly: friendly(id, kind),
+        spares_mobs: spares_mobs_of(id, kind),
         invulnerable: invulnerable(kind),
     };
     TICKING.with(|s| s.borrow_mut().push(t));
@@ -497,6 +516,314 @@ pub fn protected_id(entity: u32) -> bool {
     }
 }
 
+// ---------------------------------------------------------------------------
+// Tame enemies for loot (docs/taming.md)
+// ---------------------------------------------------------------------------
+// Feeding a mob its taming item may tame it (1 in 3). A tamed mob keeps the
+// entity tag `mord_tamed` (saved with the world); the game copies the tagged
+// mobs into `TAMED` before mobs tick, so the mob engine's hooks, which see a
+// mob but not its tags, can ask `tamed(id)`.
+
+/// The entity tag a tamed mob carries.
+pub const TAMED_TAG: &str = "mord_tamed";
+
+/// Mobs that can be tamed: their types, the loot they drop, the items that
+/// tame them (all without `minecraft:`).
+pub struct Tameable {
+    pub mobs: &'static [&'static str],
+    pub loot: &'static [&'static str],
+    pub food: &'static [&'static str],
+}
+
+const RAW_MEAT: &[&str] = &["beef", "porkchop", "chicken", "mutton", "rabbit"];
+const FLOWERS: &[&str] = &[
+    "dandelion",
+    "poppy",
+    "blue_orchid",
+    "allium",
+    "azure_bluet",
+    "red_tulip",
+    "orange_tulip",
+    "white_tulip",
+    "pink_tulip",
+    "oxeye_daisy",
+    "cornflower",
+    "lily_of_the_valley",
+    "torchflower",
+    "open_eyeblossom",
+    "closed_eyeblossom",
+    "pink_petals",
+    "wildflowers",
+    "sunflower",
+    "lilac",
+    "rose_bush",
+    "peony",
+    "pitcher_plant",
+];
+const COAL: &[&str] = &["coal", "charcoal"];
+
+pub const TAMEABLE: &[Tameable] = &[
+    Tameable {
+        mobs: &["zombie", "husk", "zombie_villager"],
+        loot: &["rotten_flesh"],
+        food: RAW_MEAT,
+    },
+    Tameable {
+        mobs: &["zombified_piglin"],
+        loot: &["rotten_flesh", "gold_nugget"],
+        food: RAW_MEAT,
+    },
+    Tameable {
+        mobs: &["drowned"],
+        loot: &["rotten_flesh", "copper_ingot"],
+        food: &["cod", "salmon"],
+    },
+    Tameable {
+        mobs: &["skeleton", "stray", "bogged"],
+        loot: &["bone", "arrow"],
+        food: &["milk_bucket"],
+    },
+    Tameable {
+        mobs: &["wither_skeleton"],
+        loot: &["coal", "bone"],
+        food: &["milk_bucket"],
+    },
+    Tameable {
+        mobs: &["creeper"],
+        loot: &["gunpowder"],
+        food: FLOWERS,
+    },
+    Tameable {
+        mobs: &["spider", "cave_spider"],
+        loot: &["string", "spider_eye"],
+        food: &["sweet_berries"],
+    },
+    Tameable {
+        mobs: &["enderman"],
+        loot: &["ender_pearl"],
+        food: &["grass_block"],
+    },
+    Tameable {
+        mobs: &["witch"],
+        loot: &[
+            "redstone",
+            "glowstone_dust",
+            "sugar",
+            "stick",
+            "glass_bottle",
+        ],
+        food: &["red_mushroom", "brown_mushroom"],
+    },
+    Tameable {
+        mobs: &["slime"],
+        loot: &["slime_ball"],
+        food: &["sugar"],
+    },
+    Tameable {
+        mobs: &["magma_cube"],
+        loot: &["magma_cream"],
+        food: COAL,
+    },
+    Tameable {
+        mobs: &["blaze"],
+        loot: &["blaze_rod"],
+        food: COAL,
+    },
+    Tameable {
+        mobs: &["guardian"],
+        loot: &["prismarine_shard", "prismarine_crystals"],
+        food: &["tropical_fish"],
+    },
+    Tameable {
+        mobs: &["shulker"],
+        loot: &["shulker_shell"],
+        food: &["chorus_fruit"],
+    },
+    Tameable {
+        mobs: &["breeze"],
+        loot: &["breeze_rod"],
+        food: &["feather"],
+    },
+    Tameable {
+        mobs: &["hoglin"],
+        loot: &["leather", "porkchop"],
+        food: &["crimson_fungus"],
+    },
+    Tameable {
+        mobs: &["ghast"],
+        loot: &["ghast_tear", "gunpowder"],
+        food: &["snowball"],
+    },
+    Tameable {
+        mobs: &["phantom"],
+        loot: &["phantom_membrane"],
+        food: &["glow_berries"],
+    },
+    Tameable {
+        mobs: &["cow"],
+        loot: &["leather"],
+        food: &["golden_carrot"],
+    },
+    Tameable {
+        mobs: &["chicken"],
+        loot: &["feather"],
+        food: &["golden_carrot"],
+    },
+];
+
+/// Mobs whose Polish name takes the feminine "Oswojona" (`mord.tamed.feminine`).
+pub const FEMININE: &[&str] = &["witch", "magma_cube", "cow", "chicken"];
+
+/// The taming entry of mob type `kind`, if it can be tamed.
+pub fn tameable(kind: &str) -> Option<&'static Tameable> {
+    let name = kind.strip_prefix("minecraft:")?;
+    TAMEABLE.iter().find(|t| t.mobs.contains(&name))
+}
+
+/// Whether `item` tames mob type `kind`.
+pub fn tames(kind: &str, item: &str) -> bool {
+    let Some(item) = item.strip_prefix("minecraft:") else {
+        return false;
+    };
+    TAME_FOR_LOOT.on() && tameable(kind).is_some_and(|t| t.food.contains(&item))
+}
+
+/// What a taming item leaves in the hand once used (a milk bucket's bucket).
+pub fn leftover(item: &str) -> Option<&'static str> {
+    (item == "minecraft:milk_bucket").then_some("minecraft:bucket")
+}
+
+/// Whether mob type `kind` can be put on a lead because of this feature.
+pub fn leashable(kind: &str) -> bool {
+    TAME_FOR_LOOT.on() && tameable(kind).is_some()
+}
+
+/// The translation key and the mob-name key of a tamed mob's name.
+pub fn tamed_name_keys(kind: &str) -> (&'static str, String) {
+    let name = kind.strip_prefix("minecraft:").unwrap_or(kind);
+    let key = if FEMININE.contains(&name) {
+        "mord.tamed.feminine"
+    } else {
+        "mord.tamed"
+    };
+    (key, format!("entity.minecraft.{name}"))
+}
+
+/// A tamed mob's name: `format` (`Tame %s`) with the mob's name, its first
+/// letter lower case ("Tame zombie", "Oswojony pająk").
+pub fn tamed_name(format: &str, mob_name: &str) -> String {
+    let mut chars = mob_name.chars();
+    let lower = match chars.next() {
+        Some(c) => c.to_lowercase().chain(chars).collect(),
+        None => String::new(),
+    };
+    format.replacen("%s", &lower, 1)
+}
+
+/// The name a tamed mob of type `kind` gets, in language `code`; `game`
+/// looks a key up in the game's current language (vanilla's mob names).
+pub fn tamed_mob_name(kind: &str, code: &str, game: impl Fn(&str) -> Option<String>) -> String {
+    let (format, mob_key) = tamed_name_keys(kind);
+    let mob_name = game(&mob_key).unwrap_or_else(|| {
+        kind.strip_prefix("minecraft:")
+            .unwrap_or(kind)
+            .replace('_', " ")
+    });
+    tamed_name(&text(code, format, &game), &mob_name)
+}
+
+/// The tamed mobs by id, and each one's loot and sparkle countdowns.
+struct Tamed {
+    ids: HashMap<u32, Timers>,
+}
+
+#[derive(Clone, Copy)]
+struct Timers {
+    loot: i32,
+    sparkle: i32,
+}
+
+static TAMED: Mutex<Option<Tamed>> = Mutex::new(None);
+
+/// Ticks until the next loot: 6000 to 12000, as a chicken's egg.
+pub const LOOT_MIN: i32 = 6000;
+pub const LOOT_SPREAD: i32 = 6000;
+/// Ticks until the next sparkles: 200 to 400.
+pub const SPARKLE_MIN: i32 = 200;
+pub const SPARKLE_SPREAD: i32 = 200;
+
+/// Whether mob `id` is tamed (and the feature on).
+pub fn tamed(id: u32) -> bool {
+    TAME_FOR_LOOT.on()
+        && TAMED
+            .lock()
+            .ok()
+            .is_some_and(|t| t.as_ref().is_some_and(|t| t.ids.contains_key(&id)))
+}
+
+/// Mob `id` is tamed (`true`, it carries the tag) or not, as the game saw it
+/// before mobs tick. `roll(n)` is a random number below `n`.
+pub fn set_tamed(id: u32, is_tamed: bool, roll: impl FnOnce(i32) -> i32) {
+    let Ok(mut t) = TAMED.lock() else { return };
+    let t = t.get_or_insert_with(|| Tamed {
+        ids: HashMap::new(),
+    });
+    if !is_tamed {
+        t.ids.remove(&id);
+    } else if !t.ids.contains_key(&id) {
+        if t.ids.len() >= IDS_CAP {
+            t.ids.clear();
+        }
+        let loot = LOOT_MIN + roll(LOOT_SPREAD);
+        t.ids.insert(
+            id,
+            Timers {
+                loot,
+                sparkle: SPARKLE_MIN,
+            },
+        );
+    }
+}
+
+/// What a tamed mob does this tick.
+#[derive(Debug, Default, PartialEq)]
+pub struct TamedTick {
+    /// The item it drops (`minecraft:` id).
+    pub loot: Option<String>,
+    /// Whether it shows its sparkles.
+    pub sparkle: bool,
+}
+
+/// Mob `id` of type `kind` ticks (`adult`: not a baby). `roll(n)` is a random
+/// number below `n`.
+pub fn tamed_tick(id: u32, kind: &str, adult: bool, mut roll: impl FnMut(i32) -> i32) -> TamedTick {
+    let mut out = TamedTick::default();
+    if !TAME_FOR_LOOT.on() {
+        return out;
+    }
+    let Ok(mut t) = TAMED.lock() else { return out };
+    let Some(timers) = t.as_mut().and_then(|t| t.ids.get_mut(&id)) else {
+        return out;
+    };
+    timers.sparkle -= 1;
+    if timers.sparkle <= 0 {
+        timers.sparkle = SPARKLE_MIN + roll(SPARKLE_SPREAD);
+        out.sparkle = true;
+    }
+    if adult {
+        timers.loot -= 1;
+        if timers.loot <= 0 {
+            timers.loot = LOOT_MIN + roll(LOOT_SPREAD);
+            if let Some(entry) = tameable(kind) {
+                let i =
+                    roll(entry.loot.len() as i32).clamp(0, entry.loot.len() as i32 - 1) as usize;
+                out.loot = Some(format!("minecraft:{}", entry.loot[i]));
+            }
+        }
+    }
+    out
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -555,8 +882,8 @@ mod tests {
 
     #[test]
     fn tick_starts_nest() {
-        tick_start("minecraft:cow", 3);
-        tick_start("minecraft:pig", 5);
+        tick_start(1, "minecraft:cow", 3);
+        tick_start(2, "minecraft:pig", 5);
         assert_eq!(ticking().map(|t| t.from), Some(5));
         assert_eq!(tick_end().map(|t| t.from), Some(5));
         assert_eq!(tick_end().map(|t| t.from), Some(3));
@@ -634,6 +961,72 @@ mod tests {
             )
         );
         assert_eq!(AUTO_SLEEP.label_key(), "mord.setting.auto_sleep");
+    }
+
+    #[test]
+    fn taming() {
+        assert!(TAME_FOR_LOOT.default);
+        assert!(tames("minecraft:zombie", "minecraft:beef"));
+        assert!(tames("minecraft:creeper", "minecraft:poppy"));
+        assert!(tames("minecraft:cow", "minecraft:golden_carrot"));
+        assert!(!tames("minecraft:cow", "minecraft:wheat"));
+        assert!(!tames("minecraft:villager", "minecraft:beef"));
+        assert!(!tames("minecraft:zombie", "beef"));
+        assert!(leashable("minecraft:ghast") && !leashable("minecraft:villager"));
+        assert_eq!(leftover("minecraft:milk_bucket"), Some("minecraft:bucket"));
+        assert_eq!(leftover("minecraft:beef"), None);
+        for t in TAMEABLE {
+            assert!(!t.loot.is_empty() && !t.food.is_empty());
+            for m in t.mobs {
+                assert_eq!(
+                    TAMEABLE.iter().filter(|o| o.mobs.contains(m)).count(),
+                    1,
+                    "{m} twice"
+                );
+            }
+        }
+        assert_eq!(tamed_name_keys("minecraft:witch").0, "mord.tamed.feminine");
+        assert_eq!(
+            tamed_name_keys("minecraft:zombie"),
+            ("mord.tamed", "entity.minecraft.zombie".into())
+        );
+        assert_eq!(tamed_name("Oswojony %s", "Pająk"), "Oswojony pająk");
+        assert_eq!(tamed_name("Tame %s", "Zombie"), "Tame zombie");
+        assert_eq!(
+            tamed_mob_name("minecraft:cave_spider", "en_us", |_| None),
+            "Tame cave spider"
+        );
+        let pl = |k: &str| (k == "entity.minecraft.witch").then(|| "Wiedźma".to_owned());
+        assert_eq!(
+            tamed_mob_name("minecraft:witch", "pl_pl", pl),
+            "Oswojona wiedźma"
+        );
+
+        assert!(!tamed(500));
+        set_tamed(500, true, |_| 0);
+        assert!(tamed(500));
+        // No loot before the timer runs out, sparkles after SPARKLE_MIN ticks.
+        let mut sparkles = 0;
+        for _ in 0..LOOT_MIN - 1 {
+            let t = tamed_tick(500, "minecraft:creeper", true, |_| 0);
+            assert_eq!(t.loot, None);
+            sparkles += usize::from(t.sparkle);
+        }
+        assert_eq!(sparkles, ((LOOT_MIN - 1) / SPARKLE_MIN) as usize);
+        let t = tamed_tick(500, "minecraft:creeper", true, |_| 0);
+        assert_eq!(t.loot.as_deref(), Some("minecraft:gunpowder"));
+        // A baby drops nothing.
+        set_tamed(501, true, |_| 0);
+        for _ in 0..LOOT_MIN + 1 {
+            assert_eq!(tamed_tick(501, "minecraft:zombie", false, |_| 0).loot, None);
+        }
+        set_tamed(500, false, |_| 0);
+        assert!(!tamed(500));
+        assert_eq!(
+            tamed_tick(500, "minecraft:creeper", true, |_| 0),
+            TamedTick::default()
+        );
+        assert!(friendly(501, "minecraft:cow"));
     }
 
     #[test]

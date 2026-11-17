@@ -3,7 +3,7 @@
 // creative is held by none; a neutral one also stops being angry.
 fn mord_invalid_target(m: &mut crate::mobs::Mob) {
     use crate::mobs::{Species, Who};
-    if m.ai.target == Some(Who::Player) && crate::mobs::mord::friendly_to_players(&m.kind.id) {
+    if m.ai.target == Some(Who::Player) && crate::mobs::mord::friendly(m.id, &m.kind.id) {
         m.ai.target = None;
         if m.extra.angry_at == Some(Who::Player) {
             m.extra.angry_at = None;

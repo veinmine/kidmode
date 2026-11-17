@@ -4,7 +4,7 @@ fn mord_brain_attack(value: bool, m: &crate::mobs::Mob, who: crate::mobs::Who) -
     use crate::mobs::mord;
     value
         && match who {
-            crate::mobs::Who::Player => !mord::friendly_to_players(&m.kind.id),
-            crate::mobs::Who::Mob(_) => !mord::spares_mobs(&m.kind.id),
+            crate::mobs::Who::Player => !mord::friendly(m.id, &m.kind.id),
+            crate::mobs::Who::Mob(_) => !mord::spares_mobs_of(m.id, &m.kind.id),
         }
 }

@@ -20,6 +20,7 @@ and Polish (**Tryb dla dzieci**). The Polish terms are listed in
 | [Invulnerable Ender Dragon](#invulnerable-ender-dragon) | Invulnerable Ender Dragon (`invulnerable_ender_dragon`) | OFF |
 | [Always sunny](#always-sunny) | Always sunny (`always_sunny`) | OFF |
 | [Auto sleep](#auto-sleep) | Auto sleep (`auto_sleep`) | OFF |
+| [Tame enemies for loot](#tame-enemies-for-loot) | Tame enemies for loot (`tame_for_loot`) | ON |
 
 ## Invulnerable player
 
@@ -128,3 +129,47 @@ on the day clock) the game skips to the next morning, exactly as when everyone
 sleeps: the clock jumps, rain clears if the weather cycle runs, and the night
 counts as rest, so phantoms don't come. Only in the Overworld, and only when
 the `advance_time` game rule is on.
+
+## Tame enemies for loot
+
+On by default, and nothing changes until a player feeds a mob. Since mobs here
+can't be killed for their drops, a mob fed its taming item may be tamed (1 in
+3, like a wolf: hearts on success, smoke on a miss). The item is used up, except
+in creative; a milk bucket leaves an empty bucket.
+
+A tamed mob drops one item of its loot every 5 to 10 minutes, like a chicken's
+egg (adults only). It is always friendly, never despawns, never burns in
+daylight and stays where it is. It gets a name ("Tame zombie", "Oswojony
+zombie"), shows a few green sparkles now and then, and carries the entity tag
+`mord_tamed` (`/tag <mob> add mord_tamed` tames one too). Any player can tame
+a mob and collect its loot.
+
+Every mob in the table can be put on a lead, tamed or not, to bring it home.
+
+| Mob | Loot | Tame with |
+|---|---|---|
+| Zombie, husk, zombie villager | rotten flesh | any raw meat |
+| Zombified piglin | rotten flesh, gold nugget | any raw meat |
+| Drowned | rotten flesh, copper ingot | raw cod or salmon |
+| Skeleton, stray, bogged | bone, arrow | milk bucket |
+| Wither skeleton | coal, bone | milk bucket |
+| Creeper | gunpowder | any flower |
+| Spider, cave spider | string, spider eye | sweet berries |
+| Enderman | ender pearl | grass block |
+| Witch | redstone, glowstone dust, sugar, stick, glass bottle | red or brown mushroom |
+| Slime | slimeball | sugar |
+| Magma cube | magma cream | coal or charcoal |
+| Blaze | blaze rod | coal or charcoal |
+| Guardian | prismarine shard, prismarine crystals | tropical fish |
+| Shulker | shulker shell | chorus fruit |
+| Breeze | breeze rod | feather |
+| Hoglin | leather, raw porkchop | crimson fungus |
+| Ghast | ghast tear, gunpowder | snowball |
+| Phantom | phantom membrane | glow berries |
+| Cow | leather | golden carrot |
+| Chicken | feather | golden carrot |
+
+With the setting off, feeding does nothing, tamed mobs stop dropping loot and
+count as untamed, and leads work as in vanilla; they keep their tag and name.
+The table is `TAMEABLE` in `mixins/mord/runtime.rs`; the design is in
+[taming.md](taming.md).

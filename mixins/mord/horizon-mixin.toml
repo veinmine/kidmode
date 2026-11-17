@@ -1,6 +1,6 @@
 [mod]
 id = "mord"
-version = "0.6.0"
+version = "0.7.0"
 priority = 100
 
 # The commit it was built and tested on (Nightly 2026-11-13). Besides the native
@@ -447,4 +447,39 @@ helper = "blast.rs"
 bindings = [
   { name = "entity", ty = "Option<u32>", value = "entity" },
   { name = "knockback_velocity", ty = "&mut [f64; 3]", value = "&mut *knockback_velocity" },
+]
+
+# ---- Tame enemies for loot (docs/taming.md) ------------------------------
+
+# Right click with a taming item: may tame the mob, before vanilla's uses.
+[[injection]]
+id = "tame-feed"
+kind = "HEAD"
+cancellable = true
+target = "horizon_client::game::creatures::Game<'_>::interact_mob"
+helper = "tame_feed.rs"
+bindings = [
+  { name = "game", ty = "&mut crate::game::Game<'_>", value = "&mut *self" },
+  { name = "target", ty = "Option<InteractTarget>", value = "target" },
+]
+
+# Before a level's mobs tick: which mobs carry the tamed tag.
+[[injection]]
+id = "tame-scan"
+kind = "HEAD"
+target = "horizon_client::game::creatures::Game<'_>::tick_creatures"
+helper = "tame_scan.rs"
+bindings = [
+  { name = "game", ty = "&mut crate::game::Game<'_>", value = "&mut *self" },
+]
+
+# Every mob that can be tamed takes a lead.
+[[injection]]
+id = "tame-leash"
+kind = "HEAD"
+cancellable = true
+target = "horizon_client_lib::mobs::leash::can_be_leashed"
+helper = "tame_leash.rs"
+bindings = [
+  { name = "m", ty = "&crate::mobs::Mob", value = "m" },
 ]

@@ -7,6 +7,7 @@
   "horizon_mixins_revision": "e8cd0aa38cffef49cb2e088ef716baa107148c02",
   "mixin_schema": 6,
   "source_sha256": {
+    "crates/horizon-client/src/game/creatures.rs": "e276aab6cdbc245c8840a3b43dfb966dd1b1e69707f39dd1c2fd1442d917358e",
     "crates/horizon-client/src/game/dragon.rs": "bd1ec0e7e76701f31e4080b380b6d58a4aee887cf7b50d7188b1744dbe627bc6",
     "crates/horizon-client/src/game/item_durability.rs": "09057717874b509f168bd267cf67086cd8d5dec8ff3c41c68615b9f06cfdec61",
     "crates/horizon-client/src/game/lan_actions.rs": "c8d4e399c03d37cb2eb7fe3caa69eb2d83fd587a399743f6fc263d7570a7c3e0",
@@ -20,6 +21,7 @@
     "crates/horizon-client/src/mobs/goals.rs": "5f4e247660cfbd9a5ced27f05c13e71cabf79a289ecb34b4a4bb66482ff95d39",
     "crates/horizon-client/src/mobs/goat.rs": "d5b9ae5d5d6213120fb45d817ac77218e6fa261dc4c2ff62b8db9993fe9252c8",
     "crates/horizon-client/src/mobs/hostile.rs": "bf794b33dc237d9fa4cd26dc6d4dce9d80ebc57d0a282edd430121654098402f",
+    "crates/horizon-client/src/mobs/leash.rs": "b1ddf0cc344cdf1d48e4f6cdd6609bdf2b08e07cc1f595e54ebec807498640b8",
     "crates/horizon-client/src/mobs/monster_brain.rs": "0332c676e4c7305c1ded932494e873d7446833a3c3faf6af8c4e5c4a4ccdc769",
     "crates/horizon-client/src/mobs/panda.rs": "6eecdea2f322d7649ea4c656312bb10822b8f9b71fe9e7f3ee9d5731c82c84ae",
     "crates/horizon-client/src/mobs/phantom.rs": "b916d3c525b7f20b14466803d20ac9ac4cbd0c0634b48ea9f263f9585cd63957",

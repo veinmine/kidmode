@@ -1,6 +1,6 @@
 # Design: Tame enemies for loot
 
-Status: agreed with veinmine on 2026-11-17, not implemented yet.
+Status: agreed with veinmine on 2026-11-17, implemented in 0.7.0.
 
 With Kid Mode, mobs are friendly and can be invulnerable, so killing them for
 their drops is out. This feature gives another way to get that loot: feed a
@@ -121,11 +121,14 @@ Hook points found in Horizon's source (revision `9f42064c`):
   (`game.persist.raw`), so it's saved with the world and survives conversions.
   `/tag @e[type=zombie] add mord_tamed` tames a mob for testing.
   `Extra.tame` and `Extra.owner` aren't used, because the game saves them only
-  for cats, wolves and the like.
+  for cats, wolves and the like. A HEAD hook on
+  `horizon_client::game::creatures::Game::tick_creatures` copies the tagged
+  mobs into the runtime's `TAMED` map before each level's mobs tick, since the
+  mob engine's hooks see a mob but not its tags.
 - **Loot and sparkles:** from the mob tick hook (`tick_end.rs`), which pushes
   `MobEvent::DropItem` and particle events, with a per-mob timer like
   `egg_time`.
-- **Leads:** a RETURN hook on `horizon_client_lib::mobs::leash::can_be_leashed`.
+- **Leads:** a cancellable HEAD hook on `horizon_client_lib::mobs::leash::can_be_leashed` (a RETURN hook is refused there: the function has a nested `use`).
 - **Persistence and sunlight:** set `persistent` when taming, and skip
   `burn_undead` for tamed mobs (as for invulnerable undead).
 - **Friendliness:** the existing friendly checks in `runtime.rs` also cover
