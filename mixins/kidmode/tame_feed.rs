@@ -34,13 +34,6 @@ fn kidmode_tame_feed(
         kidmode::set_tamed(id, true, |n| {
             game.mobs[index].random.next_int_bound(n).unwrap_or(0)
         });
-        let m = &mut game.mobs[index];
-        if m.custom_name.is_none() {
-            let language = horizon_client::lang::current();
-            let lookup = |k: &str| language.as_ref().and_then(|l| l.get(k)).map(str::to_owned);
-            m.custom_name = Some(kidmode::tamed_mob_name(&m.kind.id, &horizon_client::lang::code(), lookup));
-            m.custom_name_text = None;
-        }
     }
     let creative = game.creative;
     game.consume_held();

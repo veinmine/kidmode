@@ -50,7 +50,6 @@ update. Terms vanilla has no word for are the mod's own choices, marked
 | Auto sleep | Automatyczny sen | **mod** |
 | Tame enemies for loot | Oswajanie wrogów | **mod**, shortened to fit the button |
 | Taming hints | Podpowiedzi oswajania | **mod** |
-| Tame zombie (a tamed mob's name) | Oswojony zombie; Oswojona wiedźma / kostka magmy / krowa / kura | **mod** + `entity.minecraft.<mob>`, the adjective agrees with the mob |
 | ON / OFF | Wł. / Wył. | `options.on`, `options.off` |
 
 ## General terms

@@ -16,7 +16,7 @@ the way a chicken lays eggs.
 ON by default because nothing changes until a player feeds a mob. With it OFF,
 feeding does nothing, already tamed mobs stop dropping loot and lose their
 sparkles, and leads work only on the mobs vanilla allows. They keep their
-names and their tamed tag, so they come back if the setting is turned on again.
+tamed tag, so they come back if the setting is turned on again.
 
 ## Mobs, drops and taming items
 
@@ -101,12 +101,12 @@ we decide what to do about that mob then.
 - **Hearts** when it's tamed, then **a few green sparkles** (the
   happy-villager particle) above its head now and then, about every 10 to 20
   seconds.
-- **A name:** "Tame zombie", "Tame creeper" and so on, shown when you look at
-  it, like a name tag. In Polish the word agrees with the mob, using the mob's
-  vanilla name: "Oswojony zombie", "Oswojony pająk", "Oswojona wiedźma",
-  "Oswojone…" where needed. A name tag can rename it, and it stays tamed.
+- **A heart in its thought bubble** when you look at it (Taming hints, see
+  features.md). Up to 0.8.0 a tamed mob got a name ("Tame zombie"); veinmine
+  dropped that for the heart on 2026-11-17. Mobs tamed before keep the name
+  they got, as if from a name tag.
 
-Both work on LAN and on servers, because particles and names are sent to every
+The sparkles work on LAN and on servers, because particles are sent to every
 player. Green eyes were considered and left for later: there's no eye texture
 for zombies, skeletons or creepers, and a mixin mod can't ship textures.
 
@@ -140,5 +140,3 @@ Hook points found in Horizon's source (revision `9f42064c`):
   `burn_undead` for tamed mobs (as for invulnerable undead).
 - **Friendliness:** the existing friendly checks in `runtime.rs` also cover
   tamed mobs.
-- **Name:** set `custom_name` once on taming, in the game's language at that
-  moment.

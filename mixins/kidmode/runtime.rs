@@ -11,7 +11,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 /// The mod's id (its settings folder) and version. Its name and description
 /// are translated: the `kidmode.name` and `kidmode.description` keys below.
 pub const ID: &str = "kidmode";
-pub const VERSION: &str = "0.8.0";
+pub const VERSION: &str = "0.8.1";
 
 // ---------------------------------------------------------------------------
 // Translations
@@ -54,8 +54,6 @@ pub const EN_US: &[(&str, &str)] = &[
     ("kidmode.setting.auto_sleep", "Auto sleep"),
     ("kidmode.setting.tame_for_loot", "Tame enemies for loot"),
     ("kidmode.setting.taming_hints", "Taming hints"),
-    ("kidmode.tamed", "Tame %s"),
-    ("kidmode.tamed.feminine", "Tame %s"),
     ("options.on", "ON"),
     ("options.off", "OFF"),
 ];
@@ -93,8 +91,6 @@ pub const PL_PL: &[(&str, &str)] = &[
     ("kidmode.setting.auto_sleep", "Automatyczny sen"),
     ("kidmode.setting.tame_for_loot", "Oswajanie wrogów"),
     ("kidmode.setting.taming_hints", "Podpowiedzi oswajania"),
-    ("kidmode.tamed", "Oswojony %s"),
-    ("kidmode.tamed.feminine", "Oswojona %s"),
     ("options.on", "Wł."),
     ("options.off", "Wył."),
 ];
@@ -681,9 +677,6 @@ pub const TAMEABLE: &[Tameable] = &[
     },
 ];
 
-/// Mobs whose Polish name takes the feminine "Oswojona" (`kidmode.tamed.feminine`).
-pub const FEMININE: &[&str] = &["witch", "magma_cube", "cow", "chicken"];
-
 /// The taming entry of mob type `kind`, if it can be tamed.
 pub fn tameable(kind: &str) -> Option<&'static Tameable> {
     let name = kind.strip_prefix("minecraft:")?;
@@ -706,40 +699,6 @@ pub fn leftover(item: &str) -> Option<&'static str> {
 /// Whether mob type `kind` can be put on a lead because of this feature.
 pub fn leashable(kind: &str) -> bool {
     TAME_FOR_LOOT.on() && tameable(kind).is_some()
-}
-
-/// The translation key and the mob-name key of a tamed mob's name.
-pub fn tamed_name_keys(kind: &str) -> (&'static str, String) {
-    let name = kind.strip_prefix("minecraft:").unwrap_or(kind);
-    let key = if FEMININE.contains(&name) {
-        "kidmode.tamed.feminine"
-    } else {
-        "kidmode.tamed"
-    };
-    (key, format!("entity.minecraft.{name}"))
-}
-
-/// A tamed mob's name: `format` (`Tame %s`) with the mob's name, its first
-/// letter lower case ("Tame zombie", "Oswojony pająk").
-pub fn tamed_name(format: &str, mob_name: &str) -> String {
-    let mut chars = mob_name.chars();
-    let lower = match chars.next() {
-        Some(c) => c.to_lowercase().chain(chars).collect(),
-        None => String::new(),
-    };
-    format.replacen("%s", &lower, 1)
-}
-
-/// The name a tamed mob of type `kind` gets, in language `code`; `game`
-/// looks a key up in the game's current language (vanilla's mob names).
-pub fn tamed_mob_name(kind: &str, code: &str, game: impl Fn(&str) -> Option<String>) -> String {
-    let (format, mob_key) = tamed_name_keys(kind);
-    let mob_name = game(&mob_key).unwrap_or_else(|| {
-        kind.strip_prefix("minecraft:")
-            .unwrap_or(kind)
-            .replace('_', " ")
-    });
-    tamed_name(&text(code, format, &game), &mob_name)
 }
 
 /// Whether a lead on mob type `kind` hangs from the middle of its body (half
@@ -872,9 +831,8 @@ pub const HINT_DISTANCE: f64 = 8.0;
 /// Ticks each taming item shows for when a mob takes several (1 second).
 pub const HINT_CYCLE: i64 = 20;
 
-/// Vanilla's tameable mobs and the items that tame them (without
-/// `minecraft:`). Horses, donkeys, mules and llamas are tamed by riding them,
-/// not with an item, so they show no bubble.
+/// Vanilla's tameable mobs and what tames them (without `minecraft:`). Horses,
+/// donkeys, mules and llamas are tamed by riding them: they show a saddle.
 pub const VANILLA_TAMEABLE: &[(&str, &[&str])] = &[
     ("wolf", &["bone"]),
     ("cat", &["cod", "salmon"]),
@@ -891,6 +849,11 @@ pub const VANILLA_TAMEABLE: &[(&str, &[&str])] = &[
         ],
     ),
     ("nautilus", &["pufferfish"]),
+    ("horse", &["saddle"]),
+    ("donkey", &["saddle"]),
+    ("mule", &["saddle"]),
+    ("llama", &["saddle"]),
+    ("trader_llama", &["saddle"]),
 ];
 
 /// The items that tame mob type `kind` in vanilla.
@@ -913,40 +876,57 @@ pub fn may_hint(kind: &str) -> bool {
 /// What the client knows about a mob's taming.
 #[derive(Clone, Copy, Debug, Default)]
 pub struct TameState {
-    /// Vanilla's tame flag (wolves, cats, parrots, nautili).
+    /// Vanilla's tame flag (wolves, cats, parrots, nautili, horses, llamas).
     pub tame: bool,
     /// An ocelot's trust.
     pub trusting: bool,
     /// An angry wolf can't be tamed.
     pub angry: bool,
     pub baby: bool,
-    /// This window is a guest of a server (also the game's own local server
-    /// in single player): the mod's tamed tag isn't sent to it, so a mob
-    /// with a name (a tamed one is named "Tame zombie") counts as tamed.
-    pub guest: bool,
-    /// The mob has a custom name.
-    pub named: bool,
 }
 
-/// The items a bubble over mob `id` of type `kind` shows, or None when it
-/// shows none (setting off, can't be tamed, or tamed already).
-pub fn hint_items(kind: &str, id: u32, state: TameState) -> Option<&'static [&'static str]> {
+/// What a mob's bubble shows.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub enum Hint {
+    /// Not tamed yet: the items that tame it, in turn.
+    Items(&'static [&'static str]),
+    /// Tamed: a heart.
+    Tamed,
+}
+
+/// The bubble over mob `id` of type `kind`, or None when it shows none
+/// (setting off, can't be tamed, or can't be tamed now).
+pub fn hint(kind: &str, id: u32, state: TameState) -> Option<Hint> {
     if !TAMING_HINTS.on() {
         return None;
     }
     if let Some(items) = vanilla_taming_items(kind) {
-        let untamed = match kind {
-            "minecraft:wolf" => !state.tame && !state.angry,
-            "minecraft:ocelot" => !state.trusting,
-            "minecraft:nautilus" => !state.tame && !state.baby,
-            _ => !state.tame,
+        let name = kind.strip_prefix("minecraft:").unwrap_or(kind);
+        let tamed = if name == "ocelot" {
+            state.trusting
+        } else {
+            state.tame
         };
-        return untamed.then_some(items);
+        if tamed {
+            return Some(Hint::Tamed);
+        }
+        let now = match name {
+            "wolf" => !state.angry,
+            // A baby can't be ridden, and a baby nautilus can't be tamed.
+            "nautilus" | "horse" | "donkey" | "mule" | "llama" | "trader_llama" => !state.baby,
+            _ => true,
+        };
+        return now.then_some(Hint::Items(items));
     }
-    if !TAME_FOR_LOOT.on() || tamed(id) || (state.guest && state.named) {
+    if !TAME_FOR_LOOT.on() {
         return None;
     }
-    tameable(kind).map(|t| t.food)
+    let entry = tameable(kind)?;
+    Some(if tamed(id) {
+        Hint::Tamed
+    } else {
+        Hint::Items(entry.food)
+    })
 }
 
 /// The item shown at game time `time` (`minecraft:` id): each in turn, for
@@ -1000,11 +980,39 @@ pub const BUBBLE_PIXEL: f32 = 0.04;
 pub const BUBBLE_OUTLINE: u32 = 0xFF3A_3A3A;
 pub const BUBBLE_FILL: u32 = 0xFFFF_FFFF;
 
+/// The heart a tamed mob's bubble shows: `O` outline, `R` red, `W` shine.
+pub const HEART: [&str; 10] = [
+    ".OOO...OOO.",
+    "ORRRO.ORRRO",
+    "ORWRROORRRO",
+    "ORRRRRRRRRO",
+    "ORRRRRRRRRO",
+    ".ORRRRRRRO.",
+    "..ORRRRRO..",
+    "...ORRRO...",
+    "....ORO....",
+    ".....O.....",
+];
+pub const HEART_OUTLINE: u32 = 0xFF10_1050;
+pub const HEART_RED: u32 = 0xFF20_20E0;
+pub const HEART_SHINE: u32 = 0xFFC0_C0FF;
+
 /// The bubble as runs of one colour: (row, first column, column after the
 /// last, colour), rows counted from the top.
 pub fn bubble_runs() -> Vec<(usize, usize, usize, u32)> {
+    runs(&BUBBLE)
+}
+
+/// The heart as runs, as `bubble_runs`.
+pub fn heart_runs() -> Vec<(usize, usize, usize, u32)> {
+    runs(&HEART)
+}
+
+/// A picture (`O` outline, `W` white or shine, `R` red) as runs of one colour.
+fn runs(picture: &[&str]) -> Vec<(usize, usize, usize, u32)> {
+    let heart = picture.iter().any(|l| l.contains('R'));
     let mut runs = Vec::new();
-    for (row, line) in BUBBLE.iter().enumerate() {
+    for (row, line) in picture.iter().enumerate() {
         let bytes = line.as_bytes();
         let mut x = 0;
         while x < bytes.len() {
@@ -1013,9 +1021,12 @@ pub fn bubble_runs() -> Vec<(usize, usize, usize, u32)> {
             while x < bytes.len() && bytes[x] == c {
                 x += 1;
             }
-            let color = match c {
-                b'O' => BUBBLE_OUTLINE,
-                b'W' => BUBBLE_FILL,
+            let color = match (c, heart) {
+                (b'O', false) => BUBBLE_OUTLINE,
+                (b'W', false) => BUBBLE_FILL,
+                (b'O', true) => HEART_OUTLINE,
+                (b'R', true) => HEART_RED,
+                (b'W', true) => HEART_SHINE,
                 _ => continue,
             };
             runs.push((row, start, x, color));
@@ -1191,26 +1202,6 @@ mod tests {
                 );
             }
         }
-        assert_eq!(
-            tamed_name_keys("minecraft:witch").0,
-            "kidmode.tamed.feminine"
-        );
-        assert_eq!(
-            tamed_name_keys("minecraft:zombie"),
-            ("kidmode.tamed", "entity.minecraft.zombie".into())
-        );
-        assert_eq!(tamed_name("Oswojony %s", "Pająk"), "Oswojony pająk");
-        assert_eq!(tamed_name("Tame %s", "Zombie"), "Tame zombie");
-        assert_eq!(
-            tamed_mob_name("minecraft:cave_spider", "en_us", |_| None),
-            "Tame cave spider"
-        );
-        let pl = |k: &str| (k == "entity.minecraft.witch").then(|| "Wiedźma".to_owned());
-        assert_eq!(
-            tamed_mob_name("minecraft:witch", "pl_pl", pl),
-            "Oswojona wiedźma"
-        );
-
         assert!(!tamed(500));
         set_tamed(500, true, |_| 0);
         assert!(tamed(500));
@@ -1248,42 +1239,36 @@ mod tests {
         assert!(TAMING_HINTS.default);
         let wild = TameState::default();
         assert!(may_hint("minecraft:wolf") && may_hint("minecraft:zombie"));
-        assert!(!may_hint("minecraft:horse") && !may_hint("minecraft:villager"));
-        assert_eq!(hint_items("minecraft:wolf", 1, wild), Some(&["bone"][..]));
+        assert!(may_hint("minecraft:horse") && !may_hint("minecraft:villager"));
+        let items = |i: &'static [&'static str]| Some(Hint::Items(i));
+        assert_eq!(hint("minecraft:wolf", 1, wild), items(&["bone"]));
         let tame = TameState { tame: true, ..wild };
-        assert_eq!(hint_items("minecraft:wolf", 1, tame), None);
+        assert_eq!(hint("minecraft:wolf", 1, tame), Some(Hint::Tamed));
+        assert_eq!(hint("minecraft:horse", 1, tame), Some(Hint::Tamed));
         let angry = TameState {
             angry: true,
             ..wild
         };
-        assert_eq!(hint_items("minecraft:wolf", 1, angry), None);
+        assert_eq!(hint("minecraft:wolf", 1, angry), None);
         let trusting = TameState {
             trusting: true,
             ..wild
         };
-        assert_eq!(hint_items("minecraft:ocelot", 1, trusting), None);
-        assert!(hint_items("minecraft:cat", 1, wild).is_some());
+        assert_eq!(hint("minecraft:ocelot", 1, trusting), Some(Hint::Tamed));
+        assert_eq!(hint("minecraft:ocelot", 1, tame), items(&["cod", "salmon"]));
         let baby = TameState { baby: true, ..wild };
-        assert_eq!(hint_items("minecraft:nautilus", 1, baby), None);
-        assert!(hint_items("minecraft:wolf", 1, baby).is_some());
+        assert_eq!(hint("minecraft:nautilus", 1, baby), None);
+        assert_eq!(hint("minecraft:horse", 1, baby), None);
+        assert_eq!(hint("minecraft:llama", 1, wild), items(&["saddle"]));
+        assert!(hint("minecraft:wolf", 1, baby).is_some());
         assert_eq!(
-            hint_items("minecraft:enderman", 600, wild),
-            Some(&["grass_block"][..])
+            hint("minecraft:enderman", 600, wild),
+            items(&["grass_block"])
         );
-        let guest = TameState {
-            guest: true,
-            ..wild
-        };
-        assert!(hint_items("minecraft:enderman", 600, guest).is_some());
-        let named_guest = TameState {
-            named: true,
-            ..guest
-        };
-        assert_eq!(hint_items("minecraft:enderman", 600, named_guest), None);
-        assert!(hint_items("minecraft:wolf", 1, named_guest).is_some());
         set_tamed(600, true, |_| 0);
-        assert_eq!(hint_items("minecraft:enderman", 600, wild), None);
+        assert_eq!(hint("minecraft:enderman", 600, wild), Some(Hint::Tamed));
         set_tamed(600, false, |_| 0);
+        assert_eq!(hint("minecraft:villager", 600, wild), None);
 
         let items = ["cod", "salmon"];
         assert_eq!(hint_item(&items, 0), "minecraft:cod");
@@ -1303,10 +1288,15 @@ mod tests {
         assert!(runs.contains(&(23, 7, 8, BUBBLE_FILL)));
         assert!(runs.iter().all(|r| r.1 < r.2 && r.2 <= BUBBLE_W));
         assert!(bubble_lift(2.0, true) > bubble_lift(2.0, false));
+        assert!(HEART.iter().all(|l| l.len() == HEART[0].len()));
+        let heart = heart_runs();
+        assert_eq!(heart[0], (0, 1, 4, HEART_OUTLINE));
+        assert!(heart.contains(&(2, 2, 3, HEART_SHINE)));
+        assert!(heart.contains(&(9, 5, 6, HEART_OUTLINE)));
 
         TAMING_HINTS.set(false);
         assert!(!may_hint("minecraft:wolf"));
-        assert_eq!(hint_items("minecraft:wolf", 1, wild), None);
+        assert_eq!(hint("minecraft:wolf", 1, wild), None);
         TAMING_HINTS.set(true);
     }
 
