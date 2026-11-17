@@ -1,4 +1,4 @@
-// Mord, a native Horizon mod by veinmine. This file is both the mod's Cargo
+// Kid Mode (mod id `mord`), a native Horizon mod by veinmine. This file is both the mod's Cargo
 // library (its tests: `cargo test`) and the module the bundle adds to the game
 // as `crate::game::mord`. Module payloads cannot use inner attributes or `//!`
 // comments, external `mod` files or `include!`. Features: docs/features.md.
@@ -10,9 +10,9 @@ use std::sync::atomic::{AtomicBool, Ordering};
 
 /// The mod's id (its settings folder), name and version, as Options > Mods shows them.
 pub const ID: &str = "mord";
-pub const NAME: &str = "Mord";
-pub const VERSION: &str = "0.4.0";
-pub const DESCRIPTION: &str = "Friendly and invulnerable mobs. Features: docs/features.md.";
+pub const NAME: &str = "Kid Mode";
+pub const VERSION: &str = "0.5.0";
+pub const DESCRIPTION: &str = "A gentler world: friendly and invulnerable mobs, an invulnerable player, sunny days and nights that pass by themselves.";
 
 // ---------------------------------------------------------------------------
 // Settings
@@ -72,15 +72,46 @@ pub static INVULNERABLE_ENEMIES: Setting =
 pub static INVULNERABLE_DRAGON: Setting =
     Setting::new("invulnerable_ender_dragon", "Invulnerable Ender Dragon", false);
 
+pub static INVULNERABLE_PLAYER: Setting =
+    Setting::new("invulnerable_player", "Invulnerable player", true);
+pub static ALWAYS_SUNNY: Setting = Setting::new("always_sunny", "Always sunny", false);
+pub static AUTO_SLEEP: Setting = Setting::new("auto_sleep", "Auto sleep", false);
+
 /// The settings page, in order: button `i` toggles `SETTINGS[i]`.
-pub static SETTINGS: [&Setting; 6] = [
+pub static SETTINGS: [&Setting; 9] = [
+    &INVULNERABLE_PLAYER,
     &FRIENDLY_ENEMIES,
     &FRIENDLY_NEUTRAL,
     &FRIENDLY_FIGHT_MOBS,
     &INVULNERABLE_ANIMALS,
     &INVULNERABLE_ENEMIES,
     &INVULNERABLE_DRAGON,
+    &ALWAYS_SUNNY,
+    &AUTO_SLEEP,
 ];
+
+// ---------------------------------------------------------------------------
+// Invulnerable player, Always sunny, Auto sleep
+// ---------------------------------------------------------------------------
+
+/// The player is hit (`bypasses`: `/kill`, the void): true to refuse the hit.
+pub fn refuse_player_damage(bypasses: bool) -> bool {
+    INVULNERABLE_PLAYER.on() && !bypasses
+}
+
+/// The overworld clock tick from which a player may sleep (`Player.startSleepInBed`
+/// in clear weather): the day has ended.
+pub const BEDTIME: i64 = 12_542;
+
+/// Whether Auto sleep skips the night now: it is on, the player is in the
+/// overworld (where beds work), and the day has ended.
+pub fn auto_sleep_now(dimension: &str, day_time: i64) -> bool {
+    AUTO_SLEEP.on() && dimension == "minecraft:overworld" && day_time.rem_euclid(24_000) >= BEDTIME
+}
+
+/// How long the cleared weather is set to last (it is cleared again whenever
+/// it would turn).
+pub const SUNNY_TICKS: i32 = 24_000 * 7;
 
 static LOADED: AtomicBool = AtomicBool::new(false);
 
@@ -283,6 +314,13 @@ mod tests {
         assert!(FRIENDLY_ENEMIES.default && FRIENDLY_NEUTRAL.default && !FRIENDLY_FIGHT_MOBS.default);
         assert!(INVULNERABLE_ANIMALS.default && !INVULNERABLE_ENEMIES.default);
         assert!(!INVULNERABLE_DRAGON.default);
+        assert!(INVULNERABLE_PLAYER.default && !ALWAYS_SUNNY.default && !AUTO_SLEEP.default);
+        assert!(refuse_player_damage(false) && !refuse_player_damage(true));
+        assert!(!auto_sleep_now("minecraft:overworld", 13_000));
+        AUTO_SLEEP.set(true);
+        assert!(auto_sleep_now("minecraft:overworld", 24_000 * 3 + 13_000));
+        assert!(!auto_sleep_now("minecraft:overworld", 6_000));
+        assert!(!auto_sleep_now("minecraft:the_nether", 13_000));
 
         assert!(friendly_to_players("minecraft:skeleton"));
         assert!(friendly_to_players("minecraft:zombified_piglin"));

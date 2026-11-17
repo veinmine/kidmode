@@ -1,6 +1,6 @@
 [mod]
 id = "mord"
-version = "0.4.0"
+version = "0.5.0"
 priority = 100
 
 # The commit it was built and tested on (Nightly 2026-11-13). Besides the native
@@ -51,7 +51,7 @@ bindings = [
   { name = "button", ty = "usize", value = "button" },
 ]
 
-# Reads the settings on the server side before mobs tick.
+# Each server tick: settings, Always sunny, and rest for Auto sleep.
 [[injection]]
 id = "load"
 kind = "HEAD"
@@ -59,6 +59,50 @@ target = "horizon_client::game::native_hooks::Game<'_>::native_server_tick"
 helper = "load.rs"
 bindings = [
   { name = "game", ty = "&mut crate::game::Game<'_>", value = "&mut *self" },
+]
+
+# ---- Invulnerable player, Always sunny, Auto sleep -----------------------
+
+[[injection]]
+id = "player-hurt"
+kind = "HEAD"
+cancellable = true
+target = "horizon_client_lib::health::PlayerMotion::hurt_caused_by"
+helper = "player_hurt.rs"
+bindings = [
+  { name = "resources", ty = "&HealthResources", value = "resources" },
+  { name = "source", ty = "DamageTypeId", value = "source" },
+]
+
+[[injection]]
+id = "player-hurt-armor"
+kind = "HEAD"
+cancellable = true
+target = "horizon_client::game::item_durability::Game<'_>::hurt_player_equipment"
+helper = "player_hurt_armor.rs"
+bindings = [
+  { name = "game", ty = "&crate::game::Game<'_>", value = "&*self" },
+  { name = "source", ty = "horizon_world::damage_source::DamageTypeId", value = "source" },
+]
+
+[[injection]]
+id = "starve"
+kind = "HEAD"
+cancellable = true
+target = "horizon_client_lib::hunger::PlayerMotion::food_tick"
+helper = "starve.rs"
+bindings = [
+  { name = "m", ty = "&PlayerMotion", value = "&*self" },
+]
+
+[[injection]]
+id = "auto-sleep"
+kind = "RETURN"
+target = "horizon_client::game::lan_actions::Game<'_>::enough_slept"
+helper = "auto_sleep.rs"
+bindings = [
+  { name = "value", ty = "bool", value = "$value" },
+  { name = "game", ty = "&crate::game::Game<'_>", value = "self" },
 ]
 
 # ---- Friendly enemies / Friendly neutral mobs ----------------------------

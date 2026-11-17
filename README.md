@@ -1,6 +1,6 @@
-# Mord
+# Kid Mode
 
-A native [Horizon](https://playhorizon.dev) mod by veinmine, in the
+Kid Mode (repository and mod id `mord`) is a native [Horizon](https://playhorizon.dev) mod by veinmine, in the
 horizon-mixins format (`mixins/mord/horizon-mixin.toml`).
 
 ```sh

@@ -1,18 +1,28 @@
-# Mord features
+# Kid Mode features
 
-Every feature of the mod, with its setting. Settings live under
-**Options > Mods > Mord** and are kept in `horizon-mods/.horizon-mod-data/mord/`
+Kid Mode (mod id `mord`) makes the world gentler. Every feature, with its
+setting. Settings live under **Options > Mods > Kid Mode** and are kept in `horizon-mods/.horizon-mod-data/mord/`
 in the game folder, one file per setting holding `true` or `false`. On a
 dedicated server the server's own copies of these files decide.
 
 | Feature | Setting (file) | Default |
 |---|---|---|
+| [Invulnerable player](#invulnerable-player) | Invulnerable player (`invulnerable_player`) | ON |
 | [Friendly enemies](#friendly-enemies) | Friendly enemies (`friendly_enemies`) | ON |
 | [Friendly neutral mobs](#friendly-neutral-mobs) | Friendly neutral mobs (`friendly_neutral_mobs`) | ON |
 | [Friendly mobs fight other mobs](#friendly-mobs-fight-other-mobs) | Friendly mobs fight other mobs (`friendly_mobs_fight_mobs`) | OFF |
 | [Invulnerable animals](#invulnerable-animals) | Invulnerable animals (`invulnerable_animals`) | ON |
 | [Invulnerable enemies](#invulnerable-enemies) | Invulnerable enemies (`invulnerable_enemies`) | OFF |
 | [Invulnerable Ender Dragon](#invulnerable-ender-dragon) | Invulnerable Ender Dragon (`invulnerable_ender_dragon`) | OFF |
+| [Always sunny](#always-sunny) | Always sunny (`always_sunny`) | OFF |
+| [Auto sleep](#auto-sleep) | Auto sleep (`auto_sleep`) | OFF |
+
+## Invulnerable player
+
+The player never takes damage: mobs, falls, fire, lava, drowning, explosions,
+suffocation, and starving on an empty food bar. A hit is refused before it
+lands, so there is no knockback or hurt flash either. Hunger still drains as
+usual. `/kill` and falling out of the world still work.
 
 ## Mob groups
 
@@ -95,3 +105,16 @@ Off by default. The Ender Dragon refuses every hit (arrows, melee, beds,
 explosions, crystals blowing up next to it) before it reacts, so it takes no
 damage and doesn't change its flight because of it. `/kill` still works. With
 it on, the dragon fight can't be won.
+
+## Always sunny
+
+Off by default. Rain and thunderstorms are cleared the moment they start, so
+the sky stays clear (the weather cycle keeps running underneath).
+
+## Auto sleep
+
+Off by default. When the day ends (the time a bed would let you sleep, 12542
+on the day clock) the game skips to the next morning, exactly as when everyone
+sleeps: the clock jumps, rain clears if the weather cycle runs, and the night
+counts as rest, so phantoms don't come. Only in the Overworld, and only when
+the `advance_time` game rule is on.
