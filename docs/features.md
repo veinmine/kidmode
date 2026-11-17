@@ -1,7 +1,7 @@
 # Kid Mode features
 
-Kid Mode (mod id `mord`) makes the world gentler. Every feature, with its
-setting. Settings live under **Options > Mods > Kid Mode** and are kept in `horizon-mods/.horizon-mod-data/mord/`
+Kid Mode (mod id `kidmode`) makes the world gentler. Every feature, with its
+setting. Settings live under **Options > Mods > Kid Mode** and are kept in `horizon-mods/.horizon-mod-data/kidmode/`
 in the game folder, one file per setting holding `true` or `false`. On a
 dedicated server the server's own copies of these files decide.
 
@@ -21,6 +21,7 @@ and Polish (**Tryb dla dzieci**). The Polish terms are listed in
 | [Always sunny](#always-sunny) | Always sunny (`always_sunny`) | OFF |
 | [Auto sleep](#auto-sleep) | Auto sleep (`auto_sleep`) | OFF |
 | [Tame enemies for loot](#tame-enemies-for-loot) | Tame enemies for loot (`tame_for_loot`) | ON |
+| [Taming hints](#taming-hints) | Taming hints (`taming_hints`) | ON |
 
 ## Invulnerable player
 
@@ -32,7 +33,7 @@ usual. `/kill` and falling out of the world still work.
 ## Mob groups
 
 Vanilla mobs only; mobs from other mods are not affected yet. The lists are
-`HOSTILE`, `NEUTRAL` and `ANIMALS` in `mixins/mord/runtime.rs`.
+`HOSTILE`, `NEUTRAL` and `ANIMALS` in `mixins/kidmode/runtime.rs`.
 
 - **Enemies (hostile):** zombies, skeletons, creepers, spiders, witches,
   illagers, slimes, phantoms, guardians and the rest of vanilla's hostile
@@ -139,9 +140,9 @@ in creative; a milk bucket leaves an empty bucket.
 
 A tamed mob drops one item of its loot every 5 to 10 minutes, like a chicken's
 egg (adults only). It is always friendly, never despawns, never burns in
-daylight and stays where it is. It gets a name ("Tame zombie", "Oswojony
-zombie"), shows a few green sparkles now and then, and carries the entity tag
-`mord_tamed` (`/tag <mob> add mord_tamed` tames one too). Any player can tame
+daylight and stays where it is. It shows a few green sparkles now and then
+and a heart in its thought bubble (see Taming hints), and carries the entity tag
+`kidmode_tamed` (`/tag <mob> add kidmode_tamed` tames one too). Any player can tame
 a mob and collect its loot.
 
 Every mob in the table can be put on a lead, tamed or not, to bring it home.
@@ -173,6 +174,45 @@ doesn't break its lead.
 | Chicken | feather | golden carrot |
 
 With the setting off, feeding does nothing, tamed mobs stop dropping loot and
-count as untamed, and leads work as in vanilla; they keep their tag and name.
-The table is `TAMEABLE` in `mixins/mord/runtime.rs`; the design is in
+count as untamed, and leads work as in vanilla; they keep their tag.
+The table is `TAMEABLE` in `mixins/kidmode/runtime.rs`; the design is in
 [taming.md](taming.md).
+
+## Taming hints
+
+On by default. Look at a mob that can be tamed, from up to 8 blocks away with
+no block in between, and a thought bubble shows over its head: the item that
+tames it, or a heart once it is tamed. A Kid Mode mob someone else tamed shows
+that player's head instead (with their skin), so you can tell whose it is. A
+mob tamed with `/tag`, or before 0.9.1, has no known tamer and shows the heart
+to everyone. Vanilla's tamed mobs always show the heart (their owner isn't
+sent to players' games). Only the mob under the crosshair (the
+nearest one along the view) shows one.
+
+- **Kid Mode's tameable mobs:** the table above, while Tame enemies for loot
+  is on.
+- **Vanilla's tameable mobs:** wolf (bone), cat and ocelot (raw cod or
+  salmon), parrot (seeds: wheat, melon, pumpkin, beetroot, torchflower, or a
+  pitcher pod), nautilus (pufferfish, adults only), and horse, donkey, mule,
+  llama and trader llama (a saddle: they are tamed by riding them). An angry
+  wolf, a baby nautilus and a baby horse or llama show no bubble; an ocelot
+  that trusts you shows the heart.
+- A mob with several taming items (raw meat, flowers, fish, seeds) shows each
+  in turn, one a second.
+- The bubble fades in (0.15 s), stays for 1.5 s after you look away (or until
+  you look back), then fades out (0.4 s). Looking back while it fades brings
+  it back from where it was.
+
+The bubble is drawn on your own screen only (a layer on the mob through
+Horizon's `native_mob_layer`), turned to face the camera and full bright, so
+it reads at night too. The item is flattened onto the bubble, so it stays
+inside it from any angle, and drawn without the world's shading, in its
+inventory colours. The bubble sits above a mob's name when it has one.
+
+Every player sees this, on LAN and on servers too: the server sends each
+player's game a synced attachment, `kidmode:tamed`, on every mob the mod
+tamed, with its tamer's id, name and skin profile (the `kidmode_tamed` tag
+itself isn't sent to players). Knowing the tamer changes nothing else: anyone
+can still collect a tamed mob's loot and lead it. Vanilla's tamed
+state is sent the usual way. The lists are `VANILLA_TAMEABLE` and `TAMEABLE` in
+`mixins/kidmode/runtime.rs`, the drawing is `mixins/kidmode/tame_hint.rs`.

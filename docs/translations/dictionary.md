@@ -13,15 +13,15 @@ update. Terms vanilla has no word for are the mod's own choices, marked
 
 ## How the mod is translated
 
-- The texts live in `mixins/mord/runtime.rs` (`EN_US`, `PL_PL`) and, as
-  vanilla-style language files, in `mixins/mord/lang/en_us.json` and
+- The texts live in `mixins/kidmode/runtime.rs` (`EN_US`, `PL_PL`) and, as
+  vanilla-style language files, in `mixins/kidmode/lang/en_us.json` and
   `pl_pl.json`. `cargo test` fails when the two differ, or when a language is
   missing a key.
-- Keys: `mord.name`, `mord.description`, `mord.setting.<setting file>`. The
+- Keys: `kidmode.name`, `kidmode.description`, `kidmode.setting.<setting file>`. The
   ON/OFF state uses vanilla's own `options.on` / `options.off`, so it reads
   "Wł." / "Wył." like the game's other buttons.
 - The game's current language is checked first, so a resource pack with
-  `assets/mord/lang/<code>.json` can change any text or add a language.
+  `assets/kidmode/lang/<code>.json` can change any text or add a language.
 - Adding a language: add a table to `runtime.rs` and to `LANGUAGES`, and its
   `lang/<code>.json`.
 
@@ -49,7 +49,7 @@ update. Terms vanilla has no word for are the mod's own choices, marked
 | Always sunny | Zawsze słonecznie | **mod** |
 | Auto sleep | Automatyczny sen | **mod** |
 | Tame enemies for loot | Oswajanie wrogów | **mod**, shortened to fit the button |
-| Tame zombie (a tamed mob's name) | Oswojony zombie; Oswojona wiedźma / kostka magmy / krowa / kura | **mod** + `entity.minecraft.<mob>`, the adjective agrees with the mob |
+| Taming hints | Podpowiedzi oswajania | **mod** |
 | ON / OFF | Wł. / Wył. | `options.on`, `options.off` |
 
 ## General terms

@@ -16,7 +16,7 @@ the way a chicken lays eggs.
 ON by default because nothing changes until a player feeds a mob. With it OFF,
 feeding does nothing, already tamed mobs stop dropping loot and lose their
 sparkles, and leads work only on the mobs vanilla allows. They keep their
-names and their tamed tag, so they come back if the setting is turned on again.
+tamed tag, so they come back if the setting is turned on again.
 
 ## Mobs, drops and taming items
 
@@ -54,7 +54,7 @@ carrot doesn't clash with breeding (wheat and seeds stay breeding items).
 Left out: the illagers, the bosses, and rare drops (wither skull, evoker's
 totem, a zombie's iron ingot, carrot and potato).
 
-The table lives in code in `mixins/mord/runtime.rs` (one list of mob, loot,
+The table lives in code in `mixins/kidmode/runtime.rs` (one list of mob, loot,
 taming items), so it's easy to change.
 
 ## Taming
@@ -63,8 +63,10 @@ taming items), so it's easy to change.
   has a 1 in 3 chance: smoke particles on a miss, hearts on success. The item
   is used up, except in creative.
 - A baby mob (baby zombie, baby hoglin and so on) can be tamed the same way.
-- Any player can tame a mob and any player can collect its loot. A tamed mob
-  has no owner.
+- Any player can tame a mob and any player can collect its loot or lead it.
+  Since 0.9.1 the mod remembers who tamed it (veinmine, 2026-11-17: only to
+  show their head in the taming-hint bubble to other players; it limits
+  nothing).
 - Taming an already tamed mob does nothing and doesn't use up the item.
 
 ## A tamed mob
@@ -101,12 +103,12 @@ we decide what to do about that mob then.
 - **Hearts** when it's tamed, then **a few green sparkles** (the
   happy-villager particle) above its head now and then, about every 10 to 20
   seconds.
-- **A name:** "Tame zombie", "Tame creeper" and so on, shown when you look at
-  it, like a name tag. In Polish the word agrees with the mob, using the mob's
-  vanilla name: "Oswojony zombie", "Oswojony pająk", "Oswojona wiedźma",
-  "Oswojone…" where needed. A name tag can rename it, and it stays tamed.
+- **A heart in its thought bubble** when you look at it (Taming hints, see
+  features.md). Up to 0.8.0 a tamed mob got a name ("Tame zombie"); veinmine
+  dropped that for the heart on 2026-11-17. Mobs tamed before keep the name
+  they got, as if from a name tag.
 
-Both work on LAN and on servers, because particles and names are sent to every
+The sparkles work on LAN and on servers, because particles are sent to every
 player. Green eyes were considered and left for later: there's no eye texture
 for zombies, skeletons or creepers, and a mixin mod can't ship textures.
 
@@ -117,14 +119,20 @@ Hook points found in Horizon's source (revision `9f42064c`):
 - **Feeding:** a cancellable HEAD hook on
   `horizon_client::game::creatures::Game::interact_mob`, before vanilla's own
   interactions (name tags, leads, buckets).
-- **Tamed state:** the entity tag `mord_tamed` in the mob's saved `Tags`
+- **Tamed state:** the entity tag `kidmode_tamed` in the mob's saved `Tags`
   (`game.persist.raw`), so it's saved with the world and survives conversions.
-  `/tag @e[type=zombie] add mord_tamed` tames a mob for testing.
+  `/tag @e[type=zombie] add kidmode_tamed` tames a mob for testing.
   `Extra.tame` and `Extra.owner` aren't used, because the game saves them only
   for cats, wolves and the like. A HEAD hook on
   `horizon_client::game::creatures::Game::tick_creatures` copies the tagged
   mobs into the runtime's `TAMED` map before each level's mobs tick, since the
-  mob engine's hooks see a mob but not its tags.
+  mob engine's hooks see a mob but not its tags. The same hook keeps the
+  synced attachment `kidmode:tamed` (`mixins/kidmode/sync.rs`) on each tagged
+  mob, so every player's game knows it is tamed: Horizon's equivalent of
+  vanilla's synched entity data, which a tamed wolf uses for its tamed flag
+  and owner. Horizon sends synced attachments only once it sees a native mod
+  loaded, which a mixin mod doesn't count as, so the hook switches the
+  sending on (`hub.sync_attachments`) and resends the tamed mobs once.
 - **Loot and sparkles:** from the mob tick hook (`tick_end.rs`), which pushes
   `MobEvent::DropItem` and particle events, with a per-mob timer like
   `egg_time`.
@@ -140,5 +148,3 @@ Hook points found in Horizon's source (revision `9f42064c`):
   `burn_undead` for tamed mobs (as for invulnerable undead).
 - **Friendliness:** the existing friendly checks in `runtime.rs` also cover
   tamed mobs.
-- **Name:** set `custom_name` once on taming, in the game's language at that
-  moment.

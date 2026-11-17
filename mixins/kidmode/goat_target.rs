@@ -1,0 +1,9 @@
+// A goat's ram target or the thing in its way: a friendly goat never picks
+// the player.
+fn kidmode_goat_target(value: Option<Who>, m: &crate::mobs::Mob) -> Option<Who> {
+    if value == Some(crate::mobs::Who::Player) && crate::mobs::kidmode::friendly(m.id, &m.kind.id) {
+        None
+    } else {
+        value
+    }
+}
