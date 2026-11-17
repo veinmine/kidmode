@@ -24,14 +24,26 @@ pub const VERSION: &str = "0.6.0";
 /// keys, so the toggles read as the game's other ON/OFF buttons.
 pub const EN_US: &[(&str, &str)] = &[
     ("mord.name", "Kid Mode"),
-    ("mord.description", "A gentler world: friendly and invulnerable mobs, an invulnerable player, sunny days and nights that pass by themselves."),
+    (
+        "mord.description",
+        "A gentler world: friendly and invulnerable mobs, an invulnerable player, sunny days and nights that pass by themselves.",
+    ),
     ("mord.setting.invulnerable_player", "Invulnerable player"),
     ("mord.setting.friendly_enemies", "Friendly enemies"),
-    ("mord.setting.friendly_neutral_mobs", "Friendly neutral mobs"),
-    ("mord.setting.friendly_mobs_fight_mobs", "Friendly mobs fight other mobs"),
+    (
+        "mord.setting.friendly_neutral_mobs",
+        "Friendly neutral mobs",
+    ),
+    (
+        "mord.setting.friendly_mobs_fight_mobs",
+        "Friendly mobs fight other mobs",
+    ),
     ("mord.setting.invulnerable_animals", "Invulnerable animals"),
     ("mord.setting.invulnerable_enemies", "Invulnerable enemies"),
-    ("mord.setting.invulnerable_ender_dragon", "Invulnerable Ender Dragon"),
+    (
+        "mord.setting.invulnerable_ender_dragon",
+        "Invulnerable Ender Dragon",
+    ),
     ("mord.setting.always_sunny", "Always sunny"),
     ("mord.setting.auto_sleep", "Auto sleep"),
     ("options.on", "ON"),
@@ -41,14 +53,32 @@ pub const EN_US: &[(&str, &str)] = &[
 /// Polish. Terms follow docs/translations/dictionary.md.
 pub const PL_PL: &[(&str, &str)] = &[
     ("mord.name", "Tryb dla dzieci"),
-    ("mord.description", "Łagodniejszy świat: przyjazne i nieśmiertelne stworzenia, nieśmiertelny gracz, słoneczne dni i noce, które mijają same."),
+    (
+        "mord.description",
+        "Łagodniejszy świat: przyjazne i nieśmiertelne stworzenia, nieśmiertelny gracz, słoneczne dni i noce, które mijają same.",
+    ),
     ("mord.setting.invulnerable_player", "Nieśmiertelny gracz"),
     ("mord.setting.friendly_enemies", "Przyjaźni wrogowie"),
-    ("mord.setting.friendly_neutral_mobs", "Przyjazne neutralne stworzenia"),
-    ("mord.setting.friendly_mobs_fight_mobs", "Przyjazne stworzenia walczą z innymi"),
-    ("mord.setting.invulnerable_animals", "Nieśmiertelne zwierzęta"),
-    ("mord.setting.invulnerable_enemies", "Nieśmiertelni wrogowie"),
-    ("mord.setting.invulnerable_ender_dragon", "Nieśmiertelny Smok Endu"),
+    (
+        "mord.setting.friendly_neutral_mobs",
+        "Przyjazne neutralne stworzenia",
+    ),
+    (
+        "mord.setting.friendly_mobs_fight_mobs",
+        "Przyjazne stworzenia walczą z innymi",
+    ),
+    (
+        "mord.setting.invulnerable_animals",
+        "Nieśmiertelne zwierzęta",
+    ),
+    (
+        "mord.setting.invulnerable_enemies",
+        "Nieśmiertelni wrogowie",
+    ),
+    (
+        "mord.setting.invulnerable_ender_dragon",
+        "Nieśmiertelny Smok Endu",
+    ),
     ("mord.setting.always_sunny", "Zawsze słonecznie"),
     ("mord.setting.auto_sleep", "Automatyczny sen"),
     ("options.on", "Wł."),
@@ -62,7 +92,8 @@ pub const LANGUAGES: &[(&str, &[(&str, &str)])] = &[("en_us", EN_US), ("pl_pl", 
 /// as `pl` reads its language's file), else English, else the key.
 pub fn own_text(code: &str, key: &str) -> String {
     let code = code.to_ascii_lowercase();
-    let find = |table: &[(&str, &'static str)]| table.iter().find(|(k, _)| *k == key).map(|(_, v)| *v);
+    let find =
+        |table: &[(&str, &'static str)]| table.iter().find(|(k, _)| *k == key).map(|(_, v)| *v);
     LANGUAGES
         .iter()
         .find(|(c, _)| *c == code || c.split('_').next() == Some(code.as_str()))
@@ -94,7 +125,11 @@ pub struct Setting {
 
 impl Setting {
     const fn new(key: &'static str, default: bool) -> Self {
-        Setting { key, default, value: AtomicBool::new(default) }
+        Setting {
+            key,
+            default,
+            value: AtomicBool::new(default),
+        }
     }
 
     /// The setting as last loaded or set (its default until loaded).
@@ -122,7 +157,11 @@ impl Setting {
 
     /// The button's label, `Label: ON`, with `tr` translating a key.
     pub fn button(&self, tr: impl Fn(&str) -> String) -> String {
-        let state = tr(if self.on() { "options.on" } else { "options.off" });
+        let state = tr(if self.on() {
+            "options.on"
+        } else {
+            "options.off"
+        });
         format!("{}: {}", tr(&self.label_key()), state)
     }
 }
@@ -133,18 +172,13 @@ pub fn stored(on: bool) -> &'static str {
 
 pub static FRIENDLY_ENEMIES: Setting = Setting::new("friendly_enemies", true);
 pub static FRIENDLY_NEUTRAL: Setting = Setting::new("friendly_neutral_mobs", true);
-pub static FRIENDLY_FIGHT_MOBS: Setting =
-    Setting::new("friendly_mobs_fight_mobs", false);
-pub static INVULNERABLE_ANIMALS: Setting =
-    Setting::new("invulnerable_animals", true);
-pub static INVULNERABLE_ENEMIES: Setting =
-    Setting::new("invulnerable_enemies", false);
+pub static FRIENDLY_FIGHT_MOBS: Setting = Setting::new("friendly_mobs_fight_mobs", false);
+pub static INVULNERABLE_ANIMALS: Setting = Setting::new("invulnerable_animals", true);
+pub static INVULNERABLE_ENEMIES: Setting = Setting::new("invulnerable_enemies", false);
 
-pub static INVULNERABLE_DRAGON: Setting =
-    Setting::new("invulnerable_ender_dragon", false);
+pub static INVULNERABLE_DRAGON: Setting = Setting::new("invulnerable_ender_dragon", false);
 
-pub static INVULNERABLE_PLAYER: Setting =
-    Setting::new("invulnerable_player", true);
+pub static INVULNERABLE_PLAYER: Setting = Setting::new("invulnerable_player", true);
 pub static ALWAYS_SUNNY: Setting = Setting::new("always_sunny", false);
 pub static AUTO_SLEEP: Setting = Setting::new("auto_sleep", false);
 
@@ -202,32 +236,110 @@ pub fn load(get: impl Fn(&str) -> Option<String>) {
 
 /// Vanilla's hostile mobs: they attack on sight.
 pub const HOSTILE: &[&str] = &[
-    "blaze", "bogged", "breeze", "cave_spider", "creaking", "creeper", "drowned",
-    "elder_guardian", "ender_dragon", "endermite", "evoker", "ghast", "giant",
-    "guardian", "hoglin", "husk", "illusioner", "magma_cube", "parched", "phantom",
-    "piglin_brute", "pillager", "ravager", "shulker", "silverfish", "skeleton",
-    "slime", "spider", "stray", "vex", "vindicator", "warden", "witch", "wither",
-    "wither_skeleton", "zoglin", "zombie", "zombie_nautilus", "zombie_villager",
+    "blaze",
+    "bogged",
+    "breeze",
+    "cave_spider",
+    "creaking",
+    "creeper",
+    "drowned",
+    "elder_guardian",
+    "ender_dragon",
+    "endermite",
+    "evoker",
+    "ghast",
+    "giant",
+    "guardian",
+    "hoglin",
+    "husk",
+    "illusioner",
+    "magma_cube",
+    "parched",
+    "phantom",
+    "piglin_brute",
+    "pillager",
+    "ravager",
+    "shulker",
+    "silverfish",
+    "skeleton",
+    "slime",
+    "spider",
+    "stray",
+    "vex",
+    "vindicator",
+    "warden",
+    "witch",
+    "wither",
+    "wither_skeleton",
+    "zoglin",
+    "zombie",
+    "zombie_nautilus",
+    "zombie_villager",
 ];
 
 /// Vanilla's neutral mobs: they attack only when provoked or in some states.
 pub const NEUTRAL: &[&str] = &[
-    "bee", "dolphin", "enderman", "goat", "iron_golem", "llama", "panda", "piglin",
-    "polar_bear", "trader_llama", "wolf", "zombified_piglin",
+    "bee",
+    "dolphin",
+    "enderman",
+    "goat",
+    "iron_golem",
+    "llama",
+    "panda",
+    "piglin",
+    "polar_bear",
+    "trader_llama",
+    "wolf",
+    "zombified_piglin",
 ];
 
 /// Animals: vanilla's passive and neutral creatures, land and water.
 pub const ANIMALS: &[&str] = &[
-    "armadillo", "axolotl", "bat", "bee", "camel", "cat", "chicken", "cod", "cow",
-    "dolphin", "donkey", "fox", "frog", "glow_squid", "goat", "happy_ghast", "horse",
-    "llama", "mooshroom", "mule", "nautilus", "ocelot", "panda", "parrot", "pig",
-    "polar_bear", "pufferfish", "rabbit", "salmon", "sheep", "skeleton_horse",
-    "sniffer", "squid", "strider", "tadpole", "trader_llama", "tropical_fish",
-    "turtle", "wolf", "zombie_horse",
+    "armadillo",
+    "axolotl",
+    "bat",
+    "bee",
+    "camel",
+    "cat",
+    "chicken",
+    "cod",
+    "cow",
+    "dolphin",
+    "donkey",
+    "fox",
+    "frog",
+    "glow_squid",
+    "goat",
+    "happy_ghast",
+    "horse",
+    "llama",
+    "mooshroom",
+    "mule",
+    "nautilus",
+    "ocelot",
+    "panda",
+    "parrot",
+    "pig",
+    "polar_bear",
+    "pufferfish",
+    "rabbit",
+    "salmon",
+    "sheep",
+    "skeleton_horse",
+    "sniffer",
+    "squid",
+    "strider",
+    "tadpole",
+    "trader_llama",
+    "tropical_fish",
+    "turtle",
+    "wolf",
+    "zombie_horse",
 ];
 
 fn vanilla(kind: &str, list: &[&str]) -> bool {
-    kind.strip_prefix("minecraft:").is_some_and(|name| list.contains(&name))
+    kind.strip_prefix("minecraft:")
+        .is_some_and(|name| list.contains(&name))
 }
 
 pub fn is_hostile(kind: &str) -> bool {
@@ -256,9 +368,16 @@ pub fn friendly_to_players(kind: &str) -> bool {
 /// Harmful effects a mob can put on the player directly (not through a
 /// projectile). Helpful ones (a dolphin's grace) are kept.
 pub const HARMFUL_EFFECTS: &[&str] = &[
-    "minecraft:blindness", "minecraft:darkness", "minecraft:hunger", "minecraft:levitation",
-    "minecraft:mining_fatigue", "minecraft:nausea", "minecraft:poison", "minecraft:slowness",
-    "minecraft:weakness", "minecraft:wither",
+    "minecraft:blindness",
+    "minecraft:darkness",
+    "minecraft:hunger",
+    "minecraft:levitation",
+    "minecraft:mining_fatigue",
+    "minecraft:nausea",
+    "minecraft:poison",
+    "minecraft:slowness",
+    "minecraft:weakness",
+    "minecraft:wither",
 ];
 
 /// Whether a friendly mob of type `kind` may not attack other mobs either.
@@ -367,7 +486,10 @@ pub fn refuse_damage(entity: u32, kind: &str, bypasses: bool) -> bool {
 
 /// Whether mob `entity`, seen refusing a hit, is still invulnerable.
 pub fn protected_id(entity: u32) -> bool {
-    let animal = PROTECTED.lock().ok().and_then(|ids| ids.as_ref()?.get(&entity).copied());
+    let animal = PROTECTED
+        .lock()
+        .ok()
+        .and_then(|ids| ids.as_ref()?.get(&entity).copied());
     match animal {
         Some(true) => INVULNERABLE_ANIMALS.on(),
         Some(false) => INVULNERABLE_ENEMIES.on(),
@@ -382,7 +504,9 @@ mod tests {
     // The settings are global, so the tests that change them run in one test.
     #[test]
     fn behaviour_follows_the_settings() {
-        assert!(FRIENDLY_ENEMIES.default && FRIENDLY_NEUTRAL.default && !FRIENDLY_FIGHT_MOBS.default);
+        assert!(
+            FRIENDLY_ENEMIES.default && FRIENDLY_NEUTRAL.default && !FRIENDLY_FIGHT_MOBS.default
+        );
         assert!(INVULNERABLE_ANIMALS.default && !INVULNERABLE_ENEMIES.default);
         assert!(!INVULNERABLE_DRAGON.default);
         assert!(INVULNERABLE_PLAYER.default && !ALWAYS_SUNNY.default && !AUTO_SLEEP.default);
@@ -453,8 +577,10 @@ mod tests {
     /// `lang/<code>.json` as the mod writes it: the table in order, one key a line.
     fn lang_file(table: &[(&str, &str)]) -> String {
         let escape = |s: &str| s.replace('\\', "\\\\").replace('"', "\\\"");
-        let lines: Vec<String> =
-            table.iter().map(|(k, v)| format!("  \"{}\": \"{}\"", escape(k), escape(v))).collect();
+        let lines: Vec<String> = table
+            .iter()
+            .map(|(k, v)| format!("  \"{}\": \"{}\"", escape(k), escape(v)))
+            .collect();
         format!("{{\n{}\n}}\n", lines.join(",\n"))
     }
 
@@ -463,13 +589,27 @@ mod tests {
         for (code, table) in LANGUAGES {
             let keys: Vec<&str> = table.iter().map(|(k, _)| *k).collect();
             let english: Vec<&str> = EN_US.iter().map(|(k, _)| *k).collect();
-            assert_eq!(keys, english, "{code} has other keys than en_us, or in another order");
-            let path = format!("{}/mixins/mord/lang/{code}.json", env!("CARGO_MANIFEST_DIR"));
+            assert_eq!(
+                keys, english,
+                "{code} has other keys than en_us, or in another order"
+            );
+            let path = format!(
+                "{}/mixins/mord/lang/{code}.json",
+                env!("CARGO_MANIFEST_DIR")
+            );
             let file = std::fs::read_to_string(&path).unwrap_or_default();
-            assert_eq!(file, lang_file(table), "{path} differs from {code} in runtime.rs");
+            assert_eq!(
+                file,
+                lang_file(table),
+                "{path} differs from {code} in runtime.rs"
+            );
         }
         for s in SETTINGS {
-            assert!(EN_US.iter().any(|(k, _)| *k == s.label_key()), "{} has no label", s.key);
+            assert!(
+                EN_US.iter().any(|(k, _)| *k == s.label_key()),
+                "{} has no label",
+                s.key
+            );
         }
     }
 
@@ -482,7 +622,17 @@ mod tests {
         assert_eq!(own_text("pl_pl", "mord.nothing"), "mord.nothing");
         assert_eq!(text("pl_pl", "options.on", |_| Some("Wł.".into())), "Wł.");
         let tr = |k: &str| text("pl_pl", k, none);
-        assert_eq!(INVULNERABLE_PLAYER.button(tr), format!("Nieśmiertelny gracz: {}", tr(if INVULNERABLE_PLAYER.on() { "options.on" } else { "options.off" })));
+        assert_eq!(
+            INVULNERABLE_PLAYER.button(tr),
+            format!(
+                "Nieśmiertelny gracz: {}",
+                tr(if INVULNERABLE_PLAYER.on() {
+                    "options.on"
+                } else {
+                    "options.off"
+                })
+            )
+        );
         assert_eq!(AUTO_SLEEP.label_key(), "mord.setting.auto_sleep");
     }
 
@@ -493,7 +643,10 @@ mod tests {
         assert!(is_animal("minecraft:cow") && is_animal("minecraft:wolf"));
         assert!(!is_animal("minecraft:iron_golem") && !is_animal("othermod:cow"));
         for name in HOSTILE {
-            assert!(!NEUTRAL.contains(name), "{name} is both hostile and neutral");
+            assert!(
+                !NEUTRAL.contains(name),
+                "{name} is both hostile and neutral"
+            );
         }
     }
 }

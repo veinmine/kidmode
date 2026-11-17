@@ -2,7 +2,8 @@
 name = "horizon-mod-mord"
 version = "0.6.0"
 edition = "2024"
-license = "MIT"
+rust-version = "1.99"
+license = "GPL-3.0-or-later"
 publish = false
 authors = ["veinmine <veinmine@proton.me>"]
 description = "Kid Mode, a native Horizon mod."
