@@ -128,6 +128,13 @@ Hook points found in Horizon's source (revision `9f42064c`):
 - **Loot and sparkles:** from the mob tick hook (`tick_end.rs`), which pushes
   `MobEvent::DropItem` and particle events, with a per-mob timer like
   `egg_time`.
+- **Hearts and smoke:** queued by the feeding hook and shown from the mob's
+  next tick: during a player's turn the game has no LAN hub to send particles
+  through, so particles sent there never reach the screen.
+- **No teleports:** cancellable HEAD hooks on `mobs::enderman::teleport_to`
+  and `mobs::shulker::teleport` refuse a tamed mob's teleport.
+- **Lead position:** a cancellable HEAD hook on `mobs::leash::leash_offset`
+  hangs the lead at half the mob's height, at its front.
 - **Leads:** a cancellable HEAD hook on `horizon_client_lib::mobs::leash::can_be_leashed` (a RETURN hook is refused there: the function has a nested `use`).
 - **Persistence and sunlight:** set `persistent` when taming, and skip
   `burn_undead` for tamed mobs (as for invulnerable undead).

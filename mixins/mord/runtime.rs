@@ -732,6 +732,31 @@ pub fn tamed_mob_name(kind: &str, code: &str, game: impl Fn(&str) -> Option<Stri
     tamed_name(&text(code, format, &game), &mob_name)
 }
 
+/// Whether a lead on mob type `kind` hangs from the middle of its body (half
+/// its height, at its front) instead of vanilla's eye height. Cows and
+/// chickens keep vanilla's.
+pub fn lead_at_middle(kind: &str) -> bool {
+    leashable(kind) && !matches!(kind, "minecraft:cow" | "minecraft:chicken")
+}
+
+/// Feeding results waiting for the mob's next tick to show their hearts
+/// (`true`) or smoke: during a player's turn the game can't send particles.
+static FEEDBACK: Mutex<Option<HashMap<u32, bool>>> = Mutex::new(None);
+
+pub fn queue_feedback(id: u32, success: bool) {
+    if let Ok(mut f) = FEEDBACK.lock() {
+        let f = f.get_or_insert_with(HashMap::new);
+        if f.len() >= IDS_CAP {
+            f.clear();
+        }
+        f.insert(id, success);
+    }
+}
+
+pub fn take_feedback(id: u32) -> Option<bool> {
+    FEEDBACK.lock().ok()?.as_mut()?.remove(&id)
+}
+
 /// The tamed mobs by id, and each one's loot and sparkle countdowns.
 struct Tamed {
     ids: HashMap<u32, Timers>,
@@ -1027,6 +1052,11 @@ mod tests {
             TamedTick::default()
         );
         assert!(friendly(501, "minecraft:cow"));
+        assert!(lead_at_middle("minecraft:zombie") && !lead_at_middle("minecraft:cow"));
+        assert_eq!(take_feedback(7), None);
+        queue_feedback(7, true);
+        assert_eq!(take_feedback(7), Some(true));
+        assert_eq!(take_feedback(7), None);
     }
 
     #[test]

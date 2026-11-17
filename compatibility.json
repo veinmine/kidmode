@@ -27,6 +27,7 @@
     "crates/horizon-client/src/mobs/phantom.rs": "b916d3c525b7f20b14466803d20ac9ac4cbd0c0634b48ea9f263f9585cd63957",
     "crates/horizon-client/src/mobs/piglin.rs": "3b17873732e48f0d9dee6844d47aa85dbf040077bbb22263501917ba8107976d",
     "crates/horizon-client/src/mobs/polar_bear.rs": "59b67359d550c658a277c3e1ad6c5c3e50b733600524850aad5cd052ab5d2956",
+    "crates/horizon-client/src/mobs/shulker.rs": "ca0cced82a314dbed111e3b91a4cc12df485ced93d27c64603691095d6e24df1",
     "crates/horizon-client/src/mobs/tame.rs": "74cead7426130b4cf5df183c8a3131cc4eed460c611a67a05e32ce2a87ae835b",
     "crates/horizon-client/src/mobs/warden.rs": "6fbc6c2ad769ca5ebaaa925410bdbbe6c92fe77aa4fbddda3ce5df9bb72ea697",
     "crates/horizon-client/src/mobs/witch.rs": "4bc6ec2d717aa62302a5196e16be46df25a8010d3e3187c663590934cb970e6b",

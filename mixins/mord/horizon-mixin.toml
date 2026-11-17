@@ -483,3 +483,35 @@ helper = "tame_leash.rs"
 bindings = [
   { name = "m", ty = "&crate::mobs::Mob", value = "m" },
 ]
+
+# A tamed enderman or shulker never teleports (it would break its lead).
+[[injection]]
+id = "tame-enderman-teleport"
+kind = "HEAD"
+cancellable = true
+target = "horizon_client_lib::mobs::enderman::teleport_to"
+helper = "tame_no_teleport.rs"
+bindings = [
+  { name = "m", ty = "&crate::mobs::Mob", value = "&*m" },
+]
+
+[[injection]]
+id = "tame-shulker-teleport"
+kind = "HEAD"
+cancellable = true
+target = "horizon_client_lib::mobs::shulker::teleport"
+helper = "tame_no_teleport.rs"
+bindings = [
+  { name = "m", ty = "&crate::mobs::Mob", value = "&*m" },
+]
+
+# Leads hang from the middle of a tameable mob's body.
+[[injection]]
+id = "tame-lead-offset"
+kind = "HEAD"
+cancellable = true
+target = "horizon_client_lib::mobs::leash::leash_offset"
+helper = "tame_lead_offset.rs"
+bindings = [
+  { name = "m", ty = "&crate::mobs::Mob", value = "m" },
+]

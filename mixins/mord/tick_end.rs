@@ -8,6 +8,18 @@ fn mord_tick_end(
 ) -> bool {
     use crate::mobs::{MobEvent as E, Who, mord};
     let Some(t) = mord::tick_end() else { return value };
+    if let Some(success) = mord::take_feedback(m.id) {
+        // TamableAnimal.spawnTamingParticles: hearts on success, smoke on a miss.
+        let b = m.bounds();
+        let (lo, hi) = (b.min_position(), b.max_position());
+        events.push(E::LevelParticles {
+            kind: if success { "minecraft:heart" } else { "minecraft:smoke" },
+            at: [(lo.x + hi.x) / 2.0, (lo.y + hi.y) / 2.0 + 0.3, (lo.z + hi.z) / 2.0],
+            spread: [(hi.x - lo.x) / 2.0, (hi.y - lo.y) / 3.0, (hi.z - lo.z) / 2.0],
+            speed: 0.02,
+            count: 7,
+        });
+    }
     if m.alive() && mord::tameable(&m.kind.id).is_some() {
         let adult = !m.is_baby();
         let (id, kind) = (m.id, m.kind.id.clone());

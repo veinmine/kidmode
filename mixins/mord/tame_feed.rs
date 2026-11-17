@@ -1,11 +1,11 @@
 // Right click on a mob (`interact_mob`), before vanilla's own uses: its taming
-// item may tame a mob that isn't tamed yet (1 in 3, hearts or smoke). On a
-// tamed mob the item does what it does in vanilla.
+// item may tame a mob that isn't tamed yet (1 in 3, hearts or smoke on the
+// mob's next tick). On a tamed mob the item does what it does in vanilla.
 fn mord_tame_feed(
     game: &mut crate::game::Game<'_>,
     target: Option<InteractTarget>,
 ) -> core::ops::ControlFlow<Result<bool>> {
-    use crate::mobs::{MobEvent, mord};
+    use crate::mobs::mord;
     use core::ops::ControlFlow::{Break, Continue};
     if game.remote.is_some() {
         return Continue(());
@@ -25,7 +25,6 @@ fn mord_tame_feed(
     let b = m.bounds();
     let (lo, hi) = (b.min_position(), b.max_position());
     let center = [(lo.x + hi.x) / 2.0, (lo.y + hi.y) / 2.0 + 0.3, (lo.z + hi.z) / 2.0];
-    let spread = [(hi.x - lo.x) / 2.0, (hi.y - lo.y) / 3.0, (hi.z - lo.z) / 2.0];
     if success {
         m.persistent = true;
         m.ai.target = None;
@@ -55,13 +54,7 @@ fn mord_tame_feed(
         }
     }
     game.swing_arm();
-    let kind = if success { "minecraft:heart" } else { "minecraft:smoke" };
-    let shown = game.handle_mob_events(vec![MobEvent::LevelParticles {
-        kind,
-        at: center,
-        spread,
-        speed: 0.02,
-        count: 7,
-    }]);
-    Break(shown.map(|()| true))
+    // The hearts or smoke show on the mob's next tick (`tick_end.rs`).
+    mord::queue_feedback(id, success);
+    Break(Ok(true))
 }
