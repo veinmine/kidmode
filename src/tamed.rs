@@ -22,10 +22,7 @@ pub static TAMED: AttachmentType<Tamed> = AttachmentType {
     namespace: "kidmode",
     name: "tamed",
     default: Tamed::default,
-    codec: Some(AttachmentCodec {
-        encode: encode,
-        decode: decode,
-    }),
+    codec: Some(AttachmentCodec { encode, decode }),
     // A mob that converts (a zombie drowning) keeps it anyway: it has a codec.
     copy_on_death: false,
     sync: true,
@@ -71,4 +68,33 @@ fn decode(data: &Compound) -> Result<Tamed, AttachmentError> {
         },
         profile: data.get(&"profile".into()).cloned(),
     })
+}
+
+/// A player's profile as vanilla saves it in a player head's
+/// `minecraft:profile` (`ResolvableProfile`): name, id and the skin textures,
+/// for a head that shows their skin.
+pub fn profile_tag(profile: &mod_api::GameProfile) -> Tag {
+    let properties = profile
+        .properties
+        .iter()
+        .map(|p| {
+            let mut c: Compound = [
+                ("name".into(), Tag::String(p.name.as_str().into())),
+                ("value".into(), Tag::String(p.value.as_str().into())),
+            ]
+            .into();
+            if let Some(sig) = &p.signature {
+                c.insert("signature".into(), Tag::String(sig.as_str().into()));
+            }
+            Tag::Compound(c)
+        })
+        .collect();
+    Tag::Compound(
+        [
+            ("name".into(), Tag::String(profile.name.as_str().into())),
+            ("id".into(), Tag::IntArray(uuid_ints(profile.uuid))),
+            ("properties".into(), Tag::List(properties)),
+        ]
+        .into(),
+    )
 }

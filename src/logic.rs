@@ -108,15 +108,17 @@ pub fn refuse_player_damage(bypasses: bool) -> bool {
 /// in clear weather): the day has ended.
 pub const BEDTIME: i64 = 12_542;
 
-/// Whether Auto sleep skips the night now: it is on, the player is in the
-/// overworld (where beds work), and the day has ended.
-pub fn auto_sleep_now(dimension: &str, day_time: i64) -> bool {
-    AUTO_SLEEP.on() && dimension == "minecraft:overworld" && day_time.rem_euclid(24_000) >= BEDTIME
+/// Whether Auto sleep skips the night now: it is on and the Overworld's day
+/// (`day_time`, its clock) has ended.
+pub fn auto_sleep_now(day_time: i64) -> bool {
+    AUTO_SLEEP.on() && day_time.rem_euclid(24_000) >= BEDTIME
 }
 
-/// How long the cleared weather is set to last (it is cleared again whenever
-/// it would turn).
-pub const SUNNY_TICKS: i32 = 24_000 * 7;
+/// The morning after `day_time`, as sleeping wakes players: the next day's
+/// tick 0.
+pub fn next_morning(day_time: i64) -> i64 {
+    day_time - day_time.rem_euclid(24_000) + 24_000
+}
 
 /// Reads every setting (`get`: a key's stored value). The server reads them
 /// every second, and the client when the player changes one; the two share
@@ -125,6 +127,65 @@ pub fn load(get: impl Fn(&str) -> Option<String>) {
     for s in SETTINGS {
         s.set(s.read(get(s.key)));
     }
+}
+
+/// A random number below `n` (0 for `n` <= 0): xorshift, seeded from the
+/// clock. Good enough for taming rolls and loot timers.
+pub fn roll(n: i32) -> i32 {
+    use std::sync::atomic::AtomicU64;
+    static STATE: AtomicU64 = AtomicU64::new(0);
+    if n <= 0 {
+        return 0;
+    }
+    let mut x = STATE.load(Ordering::Relaxed);
+    if x == 0 {
+        x = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map_or(0x9E37_79B9_7F4A_7C15, |d| d.as_nanos() as u64)
+            | 1;
+    }
+    x ^= x << 13;
+    x ^= x >> 7;
+    x ^= x << 17;
+    STATE.store(x, Ordering::Relaxed);
+    (x % n as u64) as i32
+}
+
+/// The mobs the server has seen, by id, with their types: the damage hooks
+/// name an attacker by id only. Entity ids are never reused while the server
+/// runs.
+static MOB_KINDS: Mutex<Option<HashMap<u32, String>>> = Mutex::new(None);
+
+/// The server saw mob `id` of type `kind`.
+pub fn note_mob(id: u32, kind: &str) {
+    let Ok(mut kinds) = MOB_KINDS.lock() else {
+        return;
+    };
+    let kinds = kinds.get_or_insert_with(HashMap::new);
+    if kinds.contains_key(&id) {
+        return;
+    }
+    if kinds.len() >= IDS_CAP {
+        kinds.clear();
+    }
+    kinds.insert(id, kind.to_owned());
+}
+
+/// Mob `id`'s type, if the server has seen it.
+pub fn mob_kind(id: u32) -> Option<String> {
+    MOB_KINDS.lock().ok()?.as_ref()?.get(&id).cloned()
+}
+
+/// Whether a hit on a player from `causing` and `direct` (entity ids, 0 for
+/// none) comes from a friendly mob: its own hit, its projectile or its
+/// explosion.
+pub fn hit_by_friendly(causing: i32, direct: i32) -> bool {
+    [causing, direct].into_iter().any(|id| {
+        let Ok(id) = u32::try_from(id) else {
+            return false;
+        };
+        id != 0 && mob_kind(id).is_some_and(|kind| friendly(id, &kind))
+    })
 }
 
 // ---------------------------------------------------------------------------
@@ -894,6 +955,78 @@ pub fn hint_item(items: &[&str], time: i64) -> String {
     format!("minecraft:{}", items[i])
 }
 
+/// Which mob the player looks at, frame by frame: each mob drawn reports how
+/// far along the view it is hit (`None`: not hit, or a block in between), and
+/// the nearest of the last whole frame is the one looked at. `frame` tells
+/// frames apart.
+struct Look {
+    frame: u64,
+    hits: Vec<(u32, f64)>,
+    nearest: Option<u32>,
+}
+
+static LOOK: Mutex<Look> = Mutex::new(Look {
+    frame: u64::MAX,
+    hits: Vec::new(),
+    nearest: None,
+});
+
+/// Mob `id`, drawn in frame `frame`, is hit `distance` blocks along the view:
+/// whether it is the one looked at (the nearest hit; the first frame a mob is
+/// hit, any hit mob counts until the frame is complete).
+pub fn looked_at(frame: u64, id: u32, distance: Option<f64>) -> bool {
+    let Ok(mut look) = LOOK.lock() else {
+        return distance.is_some();
+    };
+    if look.frame != frame {
+        look.nearest = look
+            .hits
+            .iter()
+            .min_by(|a, b| a.1.total_cmp(&b.1))
+            .map(|(id, _)| *id);
+        look.hits.clear();
+        look.frame = frame;
+    }
+    let Some(distance) = distance else {
+        return false;
+    };
+    look.hits.push((id, distance));
+    look.nearest.is_none_or(|nearest| nearest == id)
+}
+
+/// How far along a ray from `eye` in direction `dir` (unit length) it enters
+/// the box `[min, max]`, if it does within `reach`. A ray starting inside the
+/// box hits it at 0.
+pub fn ray_box(eye: [f64; 3], dir: [f64; 3], [min, max]: [[f64; 3]; 2], reach: f64) -> Option<f64> {
+    let (mut near, mut far) = (0.0_f64, reach);
+    for i in 0..3 {
+        if dir[i].abs() < 1e-12 {
+            if eye[i] < min[i] || eye[i] > max[i] {
+                return None;
+            }
+            continue;
+        }
+        let (a, b) = ((min[i] - eye[i]) / dir[i], (max[i] - eye[i]) / dir[i]);
+        near = near.max(a.min(b));
+        far = far.min(a.max(b));
+        if near > far {
+            return None;
+        }
+    }
+    Some(near)
+}
+
+/// The unit view direction for a camera's `yaw` and `pitch` (degrees, as
+/// Minecraft's: yaw 0 looks to +z, pitch 90 looks down).
+pub fn view_direction(yaw: f32, pitch: f32) -> [f64; 3] {
+    let (yaw, pitch) = (f64::from(yaw).to_radians(), f64::from(pitch).to_radians());
+    [
+        -yaw.sin() * pitch.cos(),
+        -pitch.sin(),
+        yaw.cos() * pitch.cos(),
+    ]
+}
+
 /// How long the bubble takes to appear, how long it stays once the player
 /// looks away, and how long it then takes to fade out.
 pub const HINT_FADE_IN: Duration = Duration::from_millis(150);
@@ -907,8 +1040,9 @@ const HINT_GAP: Duration = Duration::from_millis(100);
 /// return, to fade in from where it was) and when it was last looked at.
 static HINT_SEEN: Mutex<Option<HashMap<u32, (Instant, Instant)>>> = Mutex::new(None);
 
-/// How opaque mob `id`'s bubble is at `now`, 0 to 1, as the frame draws it
-/// (`looked`: the player looks at it now).
+/// How far mob `id`'s bubble has appeared at `now`, 0 to 1, as the frame
+/// draws it (`looked`: the player looks at it now). The bubble grows and
+/// shrinks by it: the API draws a mob's extras opaque.
 pub fn hint_alpha(id: u32, looked: bool, now: Instant) -> f32 {
     let Ok(mut seen) = HINT_SEEN.lock() else {
         return f32::from(u8::from(looked));
@@ -983,9 +1117,9 @@ pub const BUBBLE_ICON_CENTRE: [f32; 2] = [9.0, 8.0];
 pub const BUBBLE_ICON: f32 = 12.0;
 /// A bubble pixel's size in blocks: the bubble is 0.72 blocks wide.
 pub const BUBBLE_PIXEL: f32 = 0.04;
-/// Colours as the vertices take them (0xAABBGGRR): outline and inside.
-pub const BUBBLE_OUTLINE: u32 = 0xFF3A_3A3A;
-pub const BUBBLE_FILL: u32 = 0xFFFF_FFFF;
+/// Colours (0xRRGGBB, a quad's tint): outline and inside.
+pub const BUBBLE_OUTLINE: u32 = 0x3A_3A3A;
+pub const BUBBLE_FILL: u32 = 0xFF_FFFF;
 
 /// The heart a tamed mob's bubble shows: `O` outline, `R` red, `W` shine.
 pub const HEART: [&str; 10] = [
@@ -1000,9 +1134,9 @@ pub const HEART: [&str; 10] = [
     "....ORO....",
     ".....O.....",
 ];
-pub const HEART_OUTLINE: u32 = 0xFF10_1050;
-pub const HEART_RED: u32 = 0xFF20_20E0;
-pub const HEART_SHINE: u32 = 0xFFC0_C0FF;
+pub const HEART_OUTLINE: u32 = 0x50_1010;
+pub const HEART_RED: u32 = 0xE0_2020;
+pub const HEART_SHINE: u32 = 0xFF_C0C0;
 
 /// The bubble as runs of one colour: (row, first column, column after the
 /// last, colour), rows counted from the top.
@@ -1062,11 +1196,11 @@ mod tests {
         assert!(!INVULNERABLE_DRAGON.default);
         assert!(INVULNERABLE_PLAYER.default && !ALWAYS_SUNNY.default && !AUTO_SLEEP.default);
         assert!(refuse_player_damage(false) && !refuse_player_damage(true));
-        assert!(!auto_sleep_now("minecraft:overworld", 13_000));
+        assert!(!auto_sleep_now(13_000));
         AUTO_SLEEP.set(true);
-        assert!(auto_sleep_now("minecraft:overworld", 24_000 * 3 + 13_000));
-        assert!(!auto_sleep_now("minecraft:overworld", 6_000));
-        assert!(!auto_sleep_now("minecraft:the_nether", 13_000));
+        assert!(auto_sleep_now(24_000 * 3 + 13_000));
+        assert!(!auto_sleep_now(6_000));
+        assert_eq!(next_morning(24_000 * 3 + 13_000), 24_000 * 4);
 
         assert!(friendly_to_players("minecraft:skeleton"));
         assert!(friendly_to_players("minecraft:zombified_piglin"));
@@ -1329,6 +1463,30 @@ mod tests {
         assert_eq!(hint_alpha(900, true, ms(2000)), 1.0);
         assert_eq!(hint_alpha(900, false, ms(2000 + 1500 + 400)), 0.0);
         assert_eq!(hint_alpha(900, false, ms(5000)), 0.0);
+    }
+
+    #[test]
+    fn looking() {
+        let [x, y, z] = view_direction(0.0, 0.0);
+        assert!(x.abs() < 1e-9 && y.abs() < 1e-9 && (z - 1.0).abs() < 1e-9);
+        assert!((view_direction(0.0, 90.0)[1] + 1.0).abs() < 1e-9);
+        let cube = [[-0.5, 0.0, 3.0], [0.5, 2.0, 4.0]];
+        assert_eq!(
+            ray_box([0.0, 1.0, 0.0], [0.0, 0.0, 1.0], cube, 8.0),
+            Some(3.0)
+        );
+        assert_eq!(ray_box([0.0, 1.0, 0.0], [0.0, 0.0, 1.0], cube, 2.0), None);
+        assert_eq!(ray_box([2.0, 1.0, 0.0], [0.0, 0.0, 1.0], cube, 8.0), None);
+        assert_eq!(
+            ray_box([0.0, 1.0, 3.5], [0.0, 0.0, 1.0], cube, 8.0),
+            Some(0.0)
+        );
+        // Two mobs in line: the first frame both count, then only the nearer.
+        assert!(looked_at(1, 70, Some(5.0)));
+        assert!(looked_at(1, 71, Some(3.0)));
+        assert!(!looked_at(2, 70, Some(5.0)));
+        assert!(looked_at(2, 71, Some(3.0)));
+        assert!(!looked_at(3, 72, None));
     }
 
     #[test]
