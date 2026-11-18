@@ -33,7 +33,7 @@ usual. `/kill` and falling out of the world still work.
 ## Mob groups
 
 Vanilla mobs only; mobs from other mods are not affected yet. The lists are
-`HOSTILE`, `NEUTRAL` and `ANIMALS` in `mixins/kidmode/runtime.rs`.
+`HOSTILE`, `NEUTRAL` and `ANIMALS` in `src/logic.rs`.
 
 - **Enemies (hostile):** zombies, skeletons, creepers, spiders, witches,
   illagers, slimes, phantoms, guardians and the rest of vanilla's hostile
@@ -51,24 +51,20 @@ Hostile mobs are passive towards players. They never target you, chase you or
 attack you, and they don't strike back when you hit them. You can still attack
 and kill them.
 
-How it works: the mob engine's "can this mob attack a player?" check
-(vanilla's `canAttack`) says no for them, so they never pick you as a target,
-take no revenge, and drop a target they already had. Creepers never fuse
-because they never target you. As a backup, any hit, sting, harmful effect,
-contact damage (slimes), sonic boom or curse that a friendly mob's tick aims
-at you is dropped.
+How it works: whenever a friendly mob picks you as its target (a goal, a
+brain, or revenge after you hit it), the pick is dropped, so it never chases
+or attacks you, and a target it still holds after its turn is cleared.
+Creepers never fuse because they never target you. As a backup, any hit or
+push on you from a friendly mob, its projectile or its explosion is refused
+(a sting, a slime's contact damage, a goat's ram, the Warden's sonic boom,
+the Wither's skulls, the Ender Dragon's breath and wings), and an enderman
+doesn't mind being stared at.
 
-To a friendly mob you count as a creative player in every targeting check,
-and the mob-specific ways of getting angry are switched off too: an
-enderman's stare, a piglin's anger at a looted chest or mined gold, a goat's
-ram, a bee's or wolf's anger.
-
-Bosses: the Warden never gets angry at you, so it never roars, chases or
-sonic-booms you. The Elder Guardian's curse is dropped. A friendly Wither
-skips its spawn blast and shoots no skulls at all (with "Friendly mobs fight
-other mobs" on it may shoot at mobs, but never its idle volleys at random
-spots). The Ender Dragon treats
-you like a creative player: no charging, no breath, no wing hits or pushes.
+Bosses: the Warden never targets you, and its sonic boom can't hurt you. A
+friendly Wither's spawn blast and skulls don't explode (unless "Friendly mobs
+fight other mobs" is on) and never hurt you. The Ender Dragon's breath, hits
+and wing pushes never land on you. What still differs from 0.10 (the Elder
+Guardian's curse, the dragon's charges) is in [missing.md](missing.md).
 
 ## Friendly neutral mobs
 
@@ -91,7 +87,6 @@ there is no hurt flash, no knockback and no attacker to remember. They don't
 react in any way: no panic, no running from fire, no revenge.
 
 - They can still be on fire; it just doesn't hurt them.
-- Undead animals (the zombie horse) don't catch fire in daylight.
 - Explosions don't push them. Players, other mobs and flowing water still can.
 - `/kill` and falling out of the world still remove them.
 
@@ -102,10 +97,8 @@ mobs plus the neutral mobs that are not animals (enderman, piglin, zombified
 piglin, iron golem). They never take damage and don't react to fire, and witches don't drink fire
 resistance.
 
-- Undead mobs (zombies, drowned, skeletons, strays, bogged, wither skeletons,
-  phantoms, zombie villagers, zombie nautiluses) don't catch fire in daylight
-  at all, and a helmet they wear doesn't wear down in the sun. Lava, fire
-  blocks, flaming arrows and the like can still set them alight, harmlessly.
+- Undead mobs still catch fire in daylight, harmlessly (see
+  [missing.md](missing.md)).
 
 - An invulnerable creeper never explodes, not even when lit with flint and
   steel.
@@ -120,16 +113,16 @@ it on, the dragon fight can't be won.
 
 ## Always sunny
 
-Off by default. Rain and thunderstorms are cleared the moment they start, so
-the sky stays clear (the weather cycle keeps running underneath).
+Off by default. Rain and thunderstorms are refused the moment they would
+start, so the sky stays clear.
 
 ## Auto sleep
 
 Off by default. When the day ends (the time a bed would let you sleep, 12542
-on the day clock) the game skips to the next morning, exactly as when everyone
+on the day clock) the game skips to the next morning, as when everyone
 sleeps: the clock jumps, rain clears if the weather cycle runs, and the night
-counts as rest, so phantoms don't come. Only in the Overworld, and only when
-the `advance_time` game rule is on.
+counts as rest for every player in the Overworld, so phantoms don't come.
+Only in the Overworld, and only when the `advance_time` game rule is on.
 
 ## Tame mobs for loot
 
@@ -141,14 +134,13 @@ in creative; a milk bucket leaves an empty bucket.
 A tamed mob drops one item of its loot every 5 to 10 minutes, like a chicken's
 egg (adults only). It is always friendly, never despawns, never burns in
 daylight and stays where it is. It shows a few green sparkles now and then
-and a heart in its thought bubble (see Taming hints), and carries the entity tag
-`kidmode_tamed` (`/tag <mob> add kidmode_tamed` tames one too). Any player can tame
-a mob and collect its loot.
+and a heart in its thought bubble (see Taming hints). The tamed state is saved
+with the mob as the attachment `kidmode:tamed`; `/tag <mob> add kidmode_tamed`
+tames one too. Any player can tame a mob and collect its loot.
 
-Every enemy and neutral mob in the table can be put on a lead, tamed or not,
-to bring it home. The lead hangs from the centre of its body rather than its
-head. Animals keep vanilla's leads (none on fish, squid or bats). A tamed enderman or shulker never teleports, so it
-doesn't break its lead.
+Leads work as in vanilla: animals take them, enemies don't (0.10 let every
+enemy and neutral mob in the table take one; the API can't yet, see
+[missing.md](missing.md)). A tamed enderman or shulker never teleports.
 
 | Mob | Loot | Tame with |
 |---|---|---|
@@ -200,9 +192,9 @@ horse (bone), zombie horse (rotten flesh). Wolves, ocelots and nautili drop
 nothing. Left out: the tadpole (it grows into a frog) and the happy ghast.
 
 With the setting off, feeding does nothing, tamed mobs stop dropping loot and
-count as untamed, and leads work as in vanilla; they keep their tag.
-The tables are `TAMEABLE` and `PET_LOOT` in `mixins/kidmode/runtime.rs`; the design is in
-[taming.md](taming.md).
+count as untamed, and leads work as in vanilla; they stay tamed for when it
+is turned on again. The tables are `TAMEABLE` and `PET_LOOT` in `src/logic.rs`;
+the design is in [taming.md](taming.md).
 
 ## Taming hints
 
@@ -210,8 +202,7 @@ On by default. Look at a mob that can be tamed, from up to 8 blocks away with
 no block in between, and a thought bubble shows over its head: the item that
 tames it, or a heart once it is tamed. A Kid Mode mob someone else tamed shows
 that player's head instead (with their skin), so you can tell whose it is. A
-mob tamed with `/tag`, or before 0.9.1, has no known tamer and shows the heart
-to everyone. Vanilla's tamed mobs always show the heart (their owner isn't
+mob tamed with `/tag` has no known tamer and shows the heart to everyone. Vanilla's tamed mobs always show the heart (their owner isn't
 sent to players' games). Only the mob under the crosshair (the
 nearest one along the view) shows one.
 
@@ -220,25 +211,22 @@ nearest one along the view) shows one.
 - **Vanilla's tameable mobs:** wolf (bone), cat and ocelot (raw cod or
   salmon), parrot (seeds: wheat, melon, pumpkin, beetroot, torchflower, or a
   pitcher pod), nautilus (pufferfish, adults only), and horse, donkey, mule,
-  llama and trader llama (a saddle: they are tamed by riding them). An angry
-  wolf, a baby nautilus and a baby horse or llama show no bubble; an ocelot
-  that trusts you shows the heart.
+  llama and trader llama (a saddle: they are tamed by riding them). A baby
+  nautilus and a baby horse or llama show no bubble.
 - A mob with several taming items (raw meat, flowers, fish, seeds) shows each
   in turn, one a second.
-- The bubble fades in (0.15 s), stays for 1.5 s after you look away (or until
-  you look back), then fades out (0.4 s). Looking back while it fades brings
-  it back from where it was.
+- The bubble grows in from its tail (0.15 s), stays for 1.5 s after you look
+  away (or until you look back), then shrinks away (0.4 s). Looking back while
+  it shrinks brings it back from where it was.
 
-The bubble is drawn on your own screen only (a layer on the mob through
-Horizon's `native_mob_layer`), turned to face the camera and full bright, so
-it reads at night too. The item is flattened onto the bubble, so it stays
-inside it from any angle, and drawn without the world's shading, in its
-inventory colours. The bubble sits above a mob's name when it has one.
+The bubble is drawn on your own screen only (after the mob, through the API's
+`render_living_post`), turned to face the camera and full bright, so it reads
+at night too. The item is flattened onto the bubble, so it stays inside it
+from any angle. The bubble sits above a mob's name when it has one.
 
 Every player sees this, on LAN and on servers too: the server sends each
 player's game a synced attachment, `kidmode:tamed`, on every mob the mod
-tamed, with its tamer's id, name and skin profile (the `kidmode_tamed` tag
-itself isn't sent to players). Knowing the tamer changes nothing else: anyone
-can still collect a tamed mob's loot and lead it. Vanilla's tamed
-state is sent the usual way. The lists are `VANILLA_TAMEABLE` and `TAMEABLE` in
-`mixins/kidmode/runtime.rs`, the drawing is `mixins/kidmode/tame_hint.rs`.
+tamed, with its tamer's id, name and skin profile. Knowing the tamer changes
+nothing else: anyone can still collect a tamed mob's loot and lead it.
+Vanilla's tamed state is sent the usual way. The lists are `VANILLA_TAMEABLE`
+and `TAMEABLE` in `src/logic.rs`, the drawing is `src/hint.rs`.

@@ -13,17 +13,15 @@ update. Terms vanilla has no word for are the mod's own choices, marked
 
 ## How the mod is translated
 
-- The texts live in `mixins/kidmode/runtime.rs` (`EN_US`, `PL_PL`) and, as
-  vanilla-style language files, in `mixins/kidmode/lang/en_us.json` and
-  `pl_pl.json`. `cargo test` fails when the two differ, or when a language is
-  missing a key.
-- Keys: `kidmode.name`, `kidmode.description`, `kidmode.setting.<setting file>`. The
-  ON/OFF state uses vanilla's own `options.on` / `options.off`, so it reads
-  "Wł." / "Wył." like the game's other buttons.
-- The game's current language is checked first, so a resource pack with
-  `assets/kidmode/lang/<code>.json` can change any text or add a language.
-- Adding a language: add a table to `runtime.rs` and to `LANGUAGES`, and its
-  `lang/<code>.json`.
+- The texts live in vanilla-style language files,
+  `assets/kidmode/lang/en_us.json` and `pl_pl.json`. `cargo test` fails when
+  a language lacks a key English has, or a setting has no label.
+- Keys: `kidmode.name`, `kidmode.description`, `kidmode.setting.<setting file>`.
+  The settings page draws ON/OFF itself, in the game's words.
+- A resource pack with `assets/kidmode/lang/<code>.json` can change any text
+  or add a language.
+- Adding a language: add its `assets/kidmode/lang/<code>.json` and its code to
+  `LANGUAGES` in `src/logic.rs`.
 
 ## Style
 

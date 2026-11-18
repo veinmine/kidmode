@@ -1,7 +1,6 @@
-// Kid Mode (mod id `kidmode`), a native Horizon mod by veinmine. This file is both the mod's Cargo
-// library (its tests: `cargo test`) and the module the bundle adds to the game
-// as `crate::game::kidmode`. Module payloads cannot use inner attributes or `//!`
-// comments, external `mod` files or `include!`. Features: docs/features.md.
+//! Kid Mode's logic, free of the game: mob groups, settings, taming, loot and the
+//! taming hint's pictures. `lib.rs` answers the game's hooks with it. Features:
+//! docs/features.md.
 
 use std::collections::HashMap;
 use std::sync::Mutex;
@@ -9,117 +8,13 @@ use std::time::{Duration, Instant};
 
 use std::sync::atomic::{AtomicBool, Ordering};
 
-/// The mod's id (its settings folder) and version. Its name and description
-/// are translated: the `kidmode.name` and `kidmode.description` keys below.
+/// The mod's id (its settings folder, its namespace) and version, as in
+/// `horizon-mod.toml`.
 pub const ID: &str = "kidmode";
-pub const VERSION: &str = "0.10.0";
+pub const VERSION: &str = "0.11.0";
 
-// ---------------------------------------------------------------------------
-// Translations
-// ---------------------------------------------------------------------------
-
-/// Every text Options > Mods shows for the mod, by translation key, in the
-/// game's language codes. `mixins/kidmode/lang/<code>.json` holds the same, as
-/// vanilla-style language files (a test keeps them equal). A key a language
-/// lacks reads in English. `options.on` and `options.off` are vanilla's own
-/// keys, so the toggles read as the game's other ON/OFF buttons.
-pub const EN_US: &[(&str, &str)] = &[
-    ("kidmode.name", "Kid Mode"),
-    (
-        "kidmode.description",
-        "A gentler world: friendly and invulnerable mobs, an invulnerable player, sunny days and nights that pass by themselves.",
-    ),
-    ("kidmode.setting.invulnerable_player", "Invulnerable player"),
-    ("kidmode.setting.friendly_enemies", "Friendly enemies"),
-    (
-        "kidmode.setting.friendly_neutral_mobs",
-        "Friendly neutral mobs",
-    ),
-    (
-        "kidmode.setting.friendly_mobs_fight_mobs",
-        "Friendly mobs fight other mobs",
-    ),
-    (
-        "kidmode.setting.invulnerable_animals",
-        "Invulnerable animals",
-    ),
-    (
-        "kidmode.setting.invulnerable_enemies",
-        "Invulnerable enemies",
-    ),
-    (
-        "kidmode.setting.invulnerable_ender_dragon",
-        "Invulnerable Ender Dragon",
-    ),
-    ("kidmode.setting.always_sunny", "Always sunny"),
-    ("kidmode.setting.auto_sleep", "Auto sleep"),
-    ("kidmode.setting.tame_for_loot", "Tame mobs for loot"),
-    ("kidmode.setting.taming_hints", "Taming hints"),
-    ("options.on", "ON"),
-    ("options.off", "OFF"),
-];
-
-/// Polish. Terms follow docs/translations/dictionary.md.
-pub const PL_PL: &[(&str, &str)] = &[
-    ("kidmode.name", "Tryb dla dzieci"),
-    (
-        "kidmode.description",
-        "Łagodniejszy świat: przyjazne i nieśmiertelne stworzenia, nieśmiertelny gracz, słoneczne dni i noce, które mijają same.",
-    ),
-    ("kidmode.setting.invulnerable_player", "Nieśmiertelny gracz"),
-    ("kidmode.setting.friendly_enemies", "Przyjaźni wrogowie"),
-    (
-        "kidmode.setting.friendly_neutral_mobs",
-        "Przyjazne neutralne stworzenia",
-    ),
-    (
-        "kidmode.setting.friendly_mobs_fight_mobs",
-        "Przyjazne stworzenia walczą z innymi",
-    ),
-    (
-        "kidmode.setting.invulnerable_animals",
-        "Nieśmiertelne zwierzęta",
-    ),
-    (
-        "kidmode.setting.invulnerable_enemies",
-        "Nieśmiertelni wrogowie",
-    ),
-    (
-        "kidmode.setting.invulnerable_ender_dragon",
-        "Nieśmiertelny Smok Endu",
-    ),
-    ("kidmode.setting.always_sunny", "Zawsze słonecznie"),
-    ("kidmode.setting.auto_sleep", "Automatyczny sen"),
-    ("kidmode.setting.tame_for_loot", "Oswajanie stworzeń"),
-    ("kidmode.setting.taming_hints", "Podpowiedzi oswajania"),
-    ("options.on", "Wł."),
-    ("options.off", "Wył."),
-];
-
-/// The languages the mod ships, by the game's language code.
-pub const LANGUAGES: &[(&str, &[(&str, &str)])] = &[("en_us", EN_US), ("pl_pl", PL_PL)];
-
-/// The mod's own text for `key` in language `code` (a regional variant such
-/// as `pl` reads its language's file), else English, else the key.
-pub fn own_text(code: &str, key: &str) -> String {
-    let code = code.to_ascii_lowercase();
-    let find =
-        |table: &[(&str, &'static str)]| table.iter().find(|(k, _)| *k == key).map(|(_, v)| *v);
-    LANGUAGES
-        .iter()
-        .find(|(c, _)| *c == code || c.split('_').next() == Some(code.as_str()))
-        .and_then(|(_, table)| find(table))
-        .or_else(|| find(EN_US))
-        .unwrap_or(key)
-        .to_owned()
-}
-
-/// Text for `key` in language `code`: the game's current language first
-/// (`game`: vanilla's keys, and resource packs that add
-/// `assets/kidmode/lang/<code>.json`), then the mod's own.
-pub fn text(code: &str, key: &str, game: impl Fn(&str) -> Option<String>) -> String {
-    game(key).unwrap_or_else(|| own_text(code, key))
-}
+/// The languages the mod ships (`assets/kidmode/lang/<code>.json`).
+pub const LANGUAGES: &[&str] = &["en_us", "pl_pl"];
 
 // ---------------------------------------------------------------------------
 // Settings
@@ -164,16 +59,6 @@ impl Setting {
     /// The label's translation key.
     pub fn label_key(&self) -> String {
         format!("kidmode.setting.{}", self.key)
-    }
-
-    /// The button's label, `Label: ON`, with `tr` translating a key.
-    pub fn button(&self, tr: impl Fn(&str) -> String) -> String {
-        let state = tr(if self.on() {
-            "options.on"
-        } else {
-            "options.off"
-        });
-        format!("{}: {}", tr(&self.label_key()), state)
     }
 }
 
@@ -223,26 +108,84 @@ pub fn refuse_player_damage(bypasses: bool) -> bool {
 /// in clear weather): the day has ended.
 pub const BEDTIME: i64 = 12_542;
 
-/// Whether Auto sleep skips the night now: it is on, the player is in the
-/// overworld (where beds work), and the day has ended.
-pub fn auto_sleep_now(dimension: &str, day_time: i64) -> bool {
-    AUTO_SLEEP.on() && dimension == "minecraft:overworld" && day_time.rem_euclid(24_000) >= BEDTIME
+/// Whether Auto sleep skips the night now: it is on and the Overworld's day
+/// (`day_time`, its clock) has ended.
+pub fn auto_sleep_now(day_time: i64) -> bool {
+    AUTO_SLEEP.on() && day_time.rem_euclid(24_000) >= BEDTIME
 }
 
-/// How long the cleared weather is set to last (it is cleared again whenever
-/// it would turn).
-pub const SUNNY_TICKS: i32 = 24_000 * 7;
+/// The morning after `day_time`, as sleeping wakes players: the next day's
+/// tick 0.
+pub fn next_morning(day_time: i64) -> i64 {
+    day_time - day_time.rem_euclid(24_000) + 24_000
+}
 
-static LOADED: AtomicBool = AtomicBool::new(false);
-
-/// Reads every setting from its file the first time, then keeps them. Shared by
-/// the client thread (settings page) and the server thread (mobs), hence atomics.
+/// Reads every setting (`get`: a key's stored value). The server reads them
+/// every second, and the client when the player changes one; the two share
+/// these statics in single player, hence atomics.
 pub fn load(get: impl Fn(&str) -> Option<String>) {
-    if !LOADED.swap(true, Ordering::AcqRel) {
-        for s in SETTINGS {
-            s.set(s.read(get(s.key)));
-        }
+    for s in SETTINGS {
+        s.set(s.read(get(s.key)));
     }
+}
+
+/// A random number below `n` (0 for `n` <= 0): xorshift, seeded from the
+/// clock. Good enough for taming rolls and loot timers.
+pub fn roll(n: i32) -> i32 {
+    use std::sync::atomic::AtomicU64;
+    static STATE: AtomicU64 = AtomicU64::new(0);
+    if n <= 0 {
+        return 0;
+    }
+    let mut x = STATE.load(Ordering::Relaxed);
+    if x == 0 {
+        x = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map_or(0x9E37_79B9_7F4A_7C15, |d| d.as_nanos() as u64)
+            | 1;
+    }
+    x ^= x << 13;
+    x ^= x >> 7;
+    x ^= x << 17;
+    STATE.store(x, Ordering::Relaxed);
+    (x % n as u64) as i32
+}
+
+/// The mobs the server has seen, by id, with their types: the damage hooks
+/// name an attacker by id only. Entity ids are never reused while the server
+/// runs.
+static MOB_KINDS: Mutex<Option<HashMap<u32, String>>> = Mutex::new(None);
+
+/// The server saw mob `id` of type `kind`.
+pub fn note_mob(id: u32, kind: &str) {
+    let Ok(mut kinds) = MOB_KINDS.lock() else {
+        return;
+    };
+    let kinds = kinds.get_or_insert_with(HashMap::new);
+    if kinds.contains_key(&id) {
+        return;
+    }
+    if kinds.len() >= IDS_CAP {
+        kinds.clear();
+    }
+    kinds.insert(id, kind.to_owned());
+}
+
+/// Mob `id`'s type, if the server has seen it.
+pub fn mob_kind(id: u32) -> Option<String> {
+    MOB_KINDS.lock().ok()?.as_ref()?.get(&id).cloned()
+}
+
+/// Whether a hit on a player from `causing` and `direct` (entity ids, 0 for
+/// none) comes from a friendly mob: its own hit, its projectile or its
+/// explosion.
+pub fn hit_by_friendly(causing: i32, direct: i32) -> bool {
+    [causing, direct].into_iter().any(|id| {
+        let Ok(id) = u32::try_from(id) else {
+            return false;
+        };
+        id != 0 && mob_kind(id).is_some_and(|kind| friendly(id, &kind))
+    })
 }
 
 // ---------------------------------------------------------------------------
@@ -370,10 +313,9 @@ pub fn is_animal(kind: &str) -> bool {
 // ---------------------------------------------------------------------------
 // Friendly enemies / Friendly neutral mobs
 // ---------------------------------------------------------------------------
-// Hooked into the mob engine (horizon_client_lib::mobs), not the mod events:
-// `Mob::spares_players` is vanilla's `canAttack(player)`, which every target
-// goal, revenge (`HurtByTargetGoal`), brain and kept target goes through. As a
-// backup, what a friendly mob's own tick does to the player is dropped.
+// `living_change_target` drops a player (or, unless friendly mobs may fight,
+// any) target a friendly mob picks, from goals and brains alike, and the
+// player's invulnerability catches whatever still lands.
 
 /// Whether mob type `kind` may not attack players with the current settings.
 pub fn friendly_to_players(kind: &str) -> bool {
@@ -411,49 +353,12 @@ pub fn spares_mobs_of(id: u32, kind: &str) -> bool {
     !FRIENDLY_FIGHT_MOBS.on() && friendly(id, kind)
 }
 
-/// The mob whose tick is running on this thread, as `Mob::tick` started it.
-#[derive(Clone, Copy, Debug, PartialEq)]
-pub struct Ticking {
-    /// Where its events start in the tick's event list.
-    pub from: usize,
-    pub friendly: bool,
-    pub spares_mobs: bool,
-    pub invulnerable: bool,
-}
-
-thread_local! {
-    /// The ticking mobs, innermost last, per thread: mobs tick on several threads.
-    static TICKING: std::cell::RefCell<Vec<Ticking>> = const { std::cell::RefCell::new(Vec::new()) };
-}
-
-/// Mob `id` of type `kind` starts its tick with `len` events already queued.
-pub fn tick_start(id: u32, kind: &str, len: usize) {
-    let t = Ticking {
-        from: len,
-        friendly: friendly(id, kind),
-        spares_mobs: spares_mobs_of(id, kind),
-        invulnerable: invulnerable(kind),
-    };
-    TICKING.with(|s| s.borrow_mut().push(t));
-}
-
-/// The matching start, when the tick ends.
-pub fn tick_end() -> Option<Ticking> {
-    TICKING.with(|s| s.borrow_mut().pop())
-}
-
-/// The mob ticking on this thread, if any.
-pub fn ticking() -> Option<Ticking> {
-    TICKING.with(|s| s.borrow().last().copied())
-}
-
 // ---------------------------------------------------------------------------
 // Invulnerable animals / Invulnerable enemies
 // ---------------------------------------------------------------------------
-// `Mob::refuses_damage` is vanilla's `isInvulnerableTo` at the start of
+// `entity_invulnerability_check` is vanilla's `isInvulnerableTo` at the start of
 // `hurtServer`: a refused hit deals no damage, sets no attacker (no panic, no
-// revenge) and gives no knockback. Fire panic and explosion pushes are hooked
-// separately.
+// revenge) and gives no knockback. Explosion pushes are hooked separately.
 
 /// Whether mob type `kind` is invulnerable with the current settings.
 pub fn invulnerable(kind: &str) -> bool {
@@ -467,19 +372,6 @@ pub fn is_enemy_for_invulnerability(kind: &str) -> bool {
     is_hostile(kind) || (is_neutral(kind) && !is_animal(kind))
 }
 
-thread_local! {
-    /// A witch's fire, hidden while it picks a potion (`witch::drink`).
-    static HIDDEN_FIRE: std::cell::Cell<i32> = const { std::cell::Cell::new(0) };
-}
-
-pub fn stash_fire(ticks: i32) {
-    HIDDEN_FIRE.with(|f| f.set(ticks));
-}
-
-pub fn unstash_fire() -> i32 {
-    HIDDEN_FIRE.with(|f| f.replace(0))
-}
-
 /// Damage types that still hurt an invulnerable mob or dragon.
 pub const BYPASSES_INVULNERABILITY: &[&str] = &["minecraft:generic_kill", "minecraft:out_of_world"];
 
@@ -489,47 +381,27 @@ pub fn refuse_dragon_damage(damage_type: Option<&str>) -> bool {
     INVULNERABLE_DRAGON.on() && !damage_type.is_some_and(|t| BYPASSES_INVULNERABILITY.contains(&t))
 }
 
-/// Invulnerable mobs that refused a hit, by id, for the explosion push (which
-/// names the mob by id only).
-static PROTECTED: Mutex<Option<HashMap<u32, bool>>> = Mutex::new(None);
+/// Mob type `kind` is hit (`bypasses`: `/kill`, the void): true to refuse
+/// the hit.
+pub fn refuse_damage(kind: &str, bypasses: bool) -> bool {
+    !bypasses && invulnerable(kind)
+}
+
+/// Whether damage of type `damage_type` still hurts the invulnerable.
+pub fn bypasses(damage_type: &str) -> bool {
+    BYPASSES_INVULNERABILITY.contains(&damage_type)
+}
+
+/// A cap on the per-mob maps, so a long session can't grow them for ever.
 const IDS_CAP: usize = 65_536;
-
-/// Mob `entity` of type `kind` is hit (`bypasses`: `/kill`, the void): true to
-/// refuse the hit.
-pub fn refuse_damage(entity: u32, kind: &str, bypasses: bool) -> bool {
-    if bypasses || !invulnerable(kind) {
-        return false;
-    }
-    if let Ok(mut ids) = PROTECTED.lock() {
-        let ids = ids.get_or_insert_with(HashMap::new);
-        if ids.len() >= IDS_CAP {
-            ids.clear();
-        }
-        ids.insert(entity, is_animal(kind));
-    }
-    true
-}
-
-/// Whether mob `entity`, seen refusing a hit, is still invulnerable.
-pub fn protected_id(entity: u32) -> bool {
-    let animal = PROTECTED
-        .lock()
-        .ok()
-        .and_then(|ids| ids.as_ref()?.get(&entity).copied());
-    match animal {
-        Some(true) => INVULNERABLE_ANIMALS.on(),
-        Some(false) => INVULNERABLE_ENEMIES.on(),
-        None => false,
-    }
-}
 
 // ---------------------------------------------------------------------------
 // Tame mobs for loot (docs/taming.md)
 // ---------------------------------------------------------------------------
-// Feeding a mob its taming item may tame it (1 in 3). A tamed mob keeps the
-// entity tag `kidmode_tamed` (saved with the world); the game copies the tagged
-// mobs into `TAMED` before mobs tick, so the mob engine's hooks, which see a
-// mob but not its tags, can ask `tamed(id)`.
+// Feeding a mob its taming item may tame it (1 in 3). A tamed mob carries the
+// attachment `kidmode:tamed` (saved with the world and synced to players), or
+// the entity tag `kidmode_tamed` (`/tag`); the server copies the tamed mobs
+// into `TAMED` each tick, with their loot and sparkle timers.
 
 /// The entity tag a tamed mob carries.
 pub const TAMED_TAG: &str = "kidmode_tamed";
@@ -864,24 +736,6 @@ pub fn lead_at_middle(kind: &str) -> bool {
     leashable(kind)
 }
 
-/// Feeding results waiting for the mob's next tick to show their hearts
-/// (`true`) or smoke: during a player's turn the game can't send particles.
-static FEEDBACK: Mutex<Option<HashMap<u32, bool>>> = Mutex::new(None);
-
-pub fn queue_feedback(id: u32, success: bool) {
-    if let Ok(mut f) = FEEDBACK.lock() {
-        let f = f.get_or_insert_with(HashMap::new);
-        if f.len() >= IDS_CAP {
-            f.clear();
-        }
-        f.insert(id, success);
-    }
-}
-
-pub fn take_feedback(id: u32) -> Option<bool> {
-    FEEDBACK.lock().ok()?.as_mut()?.remove(&id)
-}
-
 /// The tamed mobs by id, and each one's loot and sparkle countdowns.
 struct Tamed {
     ids: HashMap<u32, Timers>,
@@ -911,8 +765,7 @@ pub fn tamed(id: u32) -> bool {
             .is_some_and(|t| t.as_ref().is_some_and(|t| t.ids.contains_key(&id)))
 }
 
-/// Mob `id` is tamed (`true`, it carries the tag) or not, as the game saw it
-/// before mobs tick. `roll(n)` is a random number below `n`.
+/// Mob `id` is tamed (`true`) or not, as the server sees it. `roll(n)` is a random number below `n`.
 pub fn set_tamed(id: u32, is_tamed: bool, roll: impl FnOnce(i32) -> i32) {
     let Ok(mut t) = TAMED.lock() else { return };
     let t = t.get_or_insert_with(|| Tamed {
@@ -978,7 +831,7 @@ pub fn tamed_tick(id: u32, kind: &str, adult: bool, mut roll: impl FnMut(i32) ->
 // ---------------------------------------------------------------------------
 // Looking at a mob that can be tamed and isn't yet, from up to `HINT_DISTANCE`
 // blocks, shows a thought bubble over its head with its taming item. Drawn on
-// the client, as a layer on the mob (`tame_hint.rs`).
+// the client, after the mob (`render_living_post`, in `hint.rs`).
 
 /// How far away (blocks, from the eyes) a looked-at mob shows its bubble.
 pub const HINT_DISTANCE: f64 = 8.0;
@@ -1102,6 +955,78 @@ pub fn hint_item(items: &[&str], time: i64) -> String {
     format!("minecraft:{}", items[i])
 }
 
+/// Which mob the player looks at, frame by frame: each mob drawn reports how
+/// far along the view it is hit (`None`: not hit, or a block in between), and
+/// the nearest of the last whole frame is the one looked at. `frame` tells
+/// frames apart.
+struct Look {
+    frame: u64,
+    hits: Vec<(u32, f64)>,
+    nearest: Option<u32>,
+}
+
+static LOOK: Mutex<Look> = Mutex::new(Look {
+    frame: u64::MAX,
+    hits: Vec::new(),
+    nearest: None,
+});
+
+/// Mob `id`, drawn in frame `frame`, is hit `distance` blocks along the view:
+/// whether it is the one looked at (the nearest hit; the first frame a mob is
+/// hit, any hit mob counts until the frame is complete).
+pub fn looked_at(frame: u64, id: u32, distance: Option<f64>) -> bool {
+    let Ok(mut look) = LOOK.lock() else {
+        return distance.is_some();
+    };
+    if look.frame != frame {
+        look.nearest = look
+            .hits
+            .iter()
+            .min_by(|a, b| a.1.total_cmp(&b.1))
+            .map(|(id, _)| *id);
+        look.hits.clear();
+        look.frame = frame;
+    }
+    let Some(distance) = distance else {
+        return false;
+    };
+    look.hits.push((id, distance));
+    look.nearest.is_none_or(|nearest| nearest == id)
+}
+
+/// How far along a ray from `eye` in direction `dir` (unit length) it enters
+/// the box `[min, max]`, if it does within `reach`. A ray starting inside the
+/// box hits it at 0.
+pub fn ray_box(eye: [f64; 3], dir: [f64; 3], [min, max]: [[f64; 3]; 2], reach: f64) -> Option<f64> {
+    let (mut near, mut far) = (0.0_f64, reach);
+    for i in 0..3 {
+        if dir[i].abs() < 1e-12 {
+            if eye[i] < min[i] || eye[i] > max[i] {
+                return None;
+            }
+            continue;
+        }
+        let (a, b) = ((min[i] - eye[i]) / dir[i], (max[i] - eye[i]) / dir[i]);
+        near = near.max(a.min(b));
+        far = far.min(a.max(b));
+        if near > far {
+            return None;
+        }
+    }
+    Some(near)
+}
+
+/// The unit view direction for a camera's `yaw` and `pitch` (degrees, as
+/// Minecraft's: yaw 0 looks to +z, pitch 90 looks down).
+pub fn view_direction(yaw: f32, pitch: f32) -> [f64; 3] {
+    let (yaw, pitch) = (f64::from(yaw).to_radians(), f64::from(pitch).to_radians());
+    [
+        -yaw.sin() * pitch.cos(),
+        -pitch.sin(),
+        yaw.cos() * pitch.cos(),
+    ]
+}
+
 /// How long the bubble takes to appear, how long it stays once the player
 /// looks away, and how long it then takes to fade out.
 pub const HINT_FADE_IN: Duration = Duration::from_millis(150);
@@ -1115,8 +1040,9 @@ const HINT_GAP: Duration = Duration::from_millis(100);
 /// return, to fade in from where it was) and when it was last looked at.
 static HINT_SEEN: Mutex<Option<HashMap<u32, (Instant, Instant)>>> = Mutex::new(None);
 
-/// How opaque mob `id`'s bubble is at `now`, 0 to 1, as the frame draws it
-/// (`looked`: the player looks at it now).
+/// How far mob `id`'s bubble has appeared at `now`, 0 to 1, as the frame
+/// draws it (`looked`: the player looks at it now). The bubble grows and
+/// shrinks by it: the API draws a mob's extras opaque.
 pub fn hint_alpha(id: u32, looked: bool, now: Instant) -> f32 {
     let Ok(mut seen) = HINT_SEEN.lock() else {
         return f32::from(u8::from(looked));
@@ -1191,9 +1117,9 @@ pub const BUBBLE_ICON_CENTRE: [f32; 2] = [9.0, 8.0];
 pub const BUBBLE_ICON: f32 = 12.0;
 /// A bubble pixel's size in blocks: the bubble is 0.72 blocks wide.
 pub const BUBBLE_PIXEL: f32 = 0.04;
-/// Colours as the vertices take them (0xAABBGGRR): outline and inside.
-pub const BUBBLE_OUTLINE: u32 = 0xFF3A_3A3A;
-pub const BUBBLE_FILL: u32 = 0xFFFF_FFFF;
+/// Colours (0xRRGGBB, a quad's tint): outline and inside.
+pub const BUBBLE_OUTLINE: u32 = 0x3A_3A3A;
+pub const BUBBLE_FILL: u32 = 0xFF_FFFF;
 
 /// The heart a tamed mob's bubble shows: `O` outline, `R` red, `W` shine.
 pub const HEART: [&str; 10] = [
@@ -1208,9 +1134,9 @@ pub const HEART: [&str; 10] = [
     "....ORO....",
     ".....O.....",
 ];
-pub const HEART_OUTLINE: u32 = 0xFF10_1050;
-pub const HEART_RED: u32 = 0xFF20_20E0;
-pub const HEART_SHINE: u32 = 0xFFC0_C0FF;
+pub const HEART_OUTLINE: u32 = 0x50_1010;
+pub const HEART_RED: u32 = 0xE0_2020;
+pub const HEART_SHINE: u32 = 0xFF_C0C0;
 
 /// The bubble as runs of one colour: (row, first column, column after the
 /// last, colour), rows counted from the top.
@@ -1270,11 +1196,11 @@ mod tests {
         assert!(!INVULNERABLE_DRAGON.default);
         assert!(INVULNERABLE_PLAYER.default && !ALWAYS_SUNNY.default && !AUTO_SLEEP.default);
         assert!(refuse_player_damage(false) && !refuse_player_damage(true));
-        assert!(!auto_sleep_now("minecraft:overworld", 13_000));
+        assert!(!auto_sleep_now(13_000));
         AUTO_SLEEP.set(true);
-        assert!(auto_sleep_now("minecraft:overworld", 24_000 * 3 + 13_000));
-        assert!(!auto_sleep_now("minecraft:overworld", 6_000));
-        assert!(!auto_sleep_now("minecraft:the_nether", 13_000));
+        assert!(auto_sleep_now(24_000 * 3 + 13_000));
+        assert!(!auto_sleep_now(6_000));
+        assert_eq!(next_morning(24_000 * 3 + 13_000), 24_000 * 4);
 
         assert!(friendly_to_players("minecraft:skeleton"));
         assert!(friendly_to_players("minecraft:zombified_piglin"));
@@ -1290,37 +1216,24 @@ mod tests {
         FRIENDLY_ENEMIES.set(false);
         assert!(!friendly_to_players("minecraft:creeper"));
 
-        assert!(refuse_damage(10, "minecraft:cow", false));
-        assert!(protected_id(10));
-        assert!(!refuse_damage(10, "minecraft:cow", true));
-        assert!(!refuse_damage(11, "minecraft:zombie", false));
+        assert!(refuse_damage("minecraft:cow", false));
+        assert!(!refuse_damage("minecraft:cow", true));
+        assert!(!refuse_damage("minecraft:zombie", false));
         INVULNERABLE_ENEMIES.set(true);
-        assert!(refuse_damage(11, "minecraft:zombie", false));
-        assert!(refuse_damage(13, "minecraft:zombified_piglin", false));
-        assert!(refuse_damage(14, "minecraft:iron_golem", false));
+        assert!(refuse_damage("minecraft:zombie", false));
+        assert!(refuse_damage("minecraft:zombified_piglin", false));
+        assert!(refuse_damage("minecraft:iron_golem", false));
         INVULNERABLE_ANIMALS.set(false);
-        assert!(!refuse_damage(15, "minecraft:wolf", false));
-        assert!(!refuse_damage(10, "minecraft:cow", false));
-        assert!(!protected_id(10));
-        assert!(protected_id(11));
-        assert!(!refuse_damage(12, "minecraft:player", false));
+        assert!(!refuse_damage("minecraft:wolf", false));
+        assert!(!refuse_damage("minecraft:cow", false));
+        assert!(!refuse_damage("minecraft:player", false));
+        assert!(bypasses("minecraft:out_of_world") && !bypasses("minecraft:fall"));
 
         assert!(!refuse_dragon_damage(Some("minecraft:arrow")));
         INVULNERABLE_DRAGON.set(true);
         assert!(refuse_dragon_damage(Some("minecraft:arrow")));
         assert!(refuse_dragon_damage(None));
         assert!(!refuse_dragon_damage(Some("minecraft:generic_kill")));
-    }
-
-    #[test]
-    fn tick_starts_nest() {
-        tick_start(1, "minecraft:cow", 3);
-        tick_start(2, "minecraft:pig", 5);
-        assert_eq!(ticking().map(|t| t.from), Some(5));
-        assert_eq!(tick_end().map(|t| t.from), Some(5));
-        assert_eq!(tick_end().map(|t| t.from), Some(3));
-        assert_eq!(tick_end(), None);
-        assert_eq!(ticking(), None);
     }
 
     #[test]
@@ -1333,65 +1246,32 @@ mod tests {
         assert_eq!(stored(true), "true");
     }
 
-    /// `lang/<code>.json` as the mod writes it: the table in order, one key a line.
-    fn lang_file(table: &[(&str, &str)]) -> String {
-        let escape = |s: &str| s.replace('\\', "\\\\").replace('"', "\\\"");
-        let lines: Vec<String> = table
-            .iter()
-            .map(|(k, v)| format!("  \"{}\": \"{}\"", escape(k), escape(v)))
-            .collect();
-        format!("{{\n{}\n}}\n", lines.join(",\n"))
+    /// The keys of a language file, in order (one `"key": "value"` a line).
+    fn lang_keys(code: &str) -> Vec<String> {
+        let path = format!(
+            "{}/assets/kidmode/lang/{code}.json",
+            env!("CARGO_MANIFEST_DIR")
+        );
+        let file = std::fs::read_to_string(&path).unwrap_or_else(|e| panic!("{path}: {e}"));
+        file.lines()
+            .filter_map(|l| l.trim().strip_prefix('"')?.split_once('"'))
+            .map(|(k, _)| k.to_owned())
+            .collect()
     }
 
     #[test]
     fn translations_are_complete() {
-        for (code, table) in LANGUAGES {
-            let keys: Vec<&str> = table.iter().map(|(k, _)| *k).collect();
-            let english: Vec<&str> = EN_US.iter().map(|(k, _)| *k).collect();
+        let english = lang_keys("en_us");
+        for code in LANGUAGES {
             assert_eq!(
-                keys, english,
+                lang_keys(code),
+                english,
                 "{code} has other keys than en_us, or in another order"
-            );
-            let path = format!(
-                "{}/mixins/kidmode/lang/{code}.json",
-                env!("CARGO_MANIFEST_DIR")
-            );
-            let file = std::fs::read_to_string(&path).unwrap_or_default();
-            assert_eq!(
-                file,
-                lang_file(table),
-                "{path} differs from {code} in runtime.rs"
             );
         }
         for s in SETTINGS {
-            assert!(
-                EN_US.iter().any(|(k, _)| *k == s.label_key()),
-                "{} has no label",
-                s.key
-            );
+            assert!(english.contains(&s.label_key()), "{} has no label", s.key);
         }
-    }
-
-    #[test]
-    fn texts_follow_the_language() {
-        let none = |_: &str| None;
-        assert_eq!(own_text("pl_pl", "kidmode.name"), "Tryb dla dzieci");
-        assert_eq!(own_text("PL_PL", "kidmode.name"), "Tryb dla dzieci");
-        assert_eq!(own_text("de_de", "kidmode.name"), "Kid Mode");
-        assert_eq!(own_text("pl_pl", "kidmode.nothing"), "kidmode.nothing");
-        assert_eq!(text("pl_pl", "options.on", |_| Some("Wł.".into())), "Wł.");
-        let tr = |k: &str| text("pl_pl", k, none);
-        assert_eq!(
-            INVULNERABLE_PLAYER.button(tr),
-            format!(
-                "Nieśmiertelny gracz: {}",
-                tr(if INVULNERABLE_PLAYER.on() {
-                    "options.on"
-                } else {
-                    "options.off"
-                })
-            )
-        );
         assert_eq!(AUTO_SLEEP.label_key(), "kidmode.setting.auto_sleep");
     }
 
@@ -1479,10 +1359,6 @@ mod tests {
         );
         assert!(friendly(501, "minecraft:cow"));
         assert!(lead_at_middle("minecraft:zombie") && !lead_at_middle("minecraft:cow"));
-        assert_eq!(take_feedback(7), None);
-        queue_feedback(7, true);
-        assert_eq!(take_feedback(7), Some(true));
-        assert_eq!(take_feedback(7), None);
     }
 
     #[test]
@@ -1587,6 +1463,30 @@ mod tests {
         assert_eq!(hint_alpha(900, true, ms(2000)), 1.0);
         assert_eq!(hint_alpha(900, false, ms(2000 + 1500 + 400)), 0.0);
         assert_eq!(hint_alpha(900, false, ms(5000)), 0.0);
+    }
+
+    #[test]
+    fn looking() {
+        let [x, y, z] = view_direction(0.0, 0.0);
+        assert!(x.abs() < 1e-9 && y.abs() < 1e-9 && (z - 1.0).abs() < 1e-9);
+        assert!((view_direction(0.0, 90.0)[1] + 1.0).abs() < 1e-9);
+        let cube = [[-0.5, 0.0, 3.0], [0.5, 2.0, 4.0]];
+        assert_eq!(
+            ray_box([0.0, 1.0, 0.0], [0.0, 0.0, 1.0], cube, 8.0),
+            Some(3.0)
+        );
+        assert_eq!(ray_box([0.0, 1.0, 0.0], [0.0, 0.0, 1.0], cube, 2.0), None);
+        assert_eq!(ray_box([2.0, 1.0, 0.0], [0.0, 0.0, 1.0], cube, 8.0), None);
+        assert_eq!(
+            ray_box([0.0, 1.0, 3.5], [0.0, 0.0, 1.0], cube, 8.0),
+            Some(0.0)
+        );
+        // Two mobs in line: the first frame both count, then only the nearer.
+        assert!(looked_at(1, 70, Some(5.0)));
+        assert!(looked_at(1, 71, Some(3.0)));
+        assert!(!looked_at(2, 70, Some(5.0)));
+        assert!(looked_at(2, 71, Some(3.0)));
+        assert!(!looked_at(3, 72, None));
     }
 
     #[test]
