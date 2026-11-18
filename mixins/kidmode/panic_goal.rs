@@ -1,9 +1,0 @@
-// PanicGoal.canUse: never for an invulnerable mob (covers the armadillo's
-// environmental panic, which reads fire directly).
-fn kidmode_panic_goal(m: &crate::mobs::Mob) -> core::ops::ControlFlow<bool> {
-    if crate::mobs::kidmode::invulnerable(&m.kind.id) {
-        core::ops::ControlFlow::Break(false)
-    } else {
-        core::ops::ControlFlow::Continue(())
-    }
-}

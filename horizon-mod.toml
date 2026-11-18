@@ -1,0 +1,19 @@
+id = "kidmode"
+name = "Kid Mode"
+version = "0.11.0"
+description = "A gentler world: friendly and invulnerable mobs, an invulnerable player, sunny days, nights that pass by themselves, and mobs to tame for their loot."
+authors = ["veinmine"]
+license = "GPL-3.0-or-later"
+api = "0.2"
+# Both: the mobs, damage, weather and taming run on the server (single player's
+# too), the settings page and the taming hints on the client.
+side = "both"
+capabilities = ["registries"]
+
+# A native mod built against one exact game build. Kid Mode uses the mod API's
+# hooks only; [native] stays because the launcher builds native mods, and so
+# the mod can take a mixin where no hook exists.
+[native]
+game = "26.3"
+horizon = "0b14f8acfd97fa2c750e42795249dcc981178ca4"
+mixins = "e59da9094f0c2fdda6c627fe9eff22dec6a906f0"

@@ -1,7 +1,6 @@
-// Kid Mode (mod id `kidmode`), a native Horizon mod by veinmine. This file is both the mod's Cargo
-// library (its tests: `cargo test`) and the module the bundle adds to the game
-// as `crate::game::kidmode`. Module payloads cannot use inner attributes or `//!`
-// comments, external `mod` files or `include!`. Features: docs/features.md.
+//! Kid Mode's logic, free of the game: mob groups, settings, taming, loot and the
+//! taming hint's pictures. `lib.rs` answers the game's hooks with it. Features:
+//! docs/features.md.
 
 use std::collections::HashMap;
 use std::sync::Mutex;
@@ -9,117 +8,13 @@ use std::time::{Duration, Instant};
 
 use std::sync::atomic::{AtomicBool, Ordering};
 
-/// The mod's id (its settings folder) and version. Its name and description
-/// are translated: the `kidmode.name` and `kidmode.description` keys below.
+/// The mod's id (its settings folder, its namespace) and version, as in
+/// `horizon-mod.toml`.
 pub const ID: &str = "kidmode";
-pub const VERSION: &str = "0.10.0";
+pub const VERSION: &str = "0.11.0";
 
-// ---------------------------------------------------------------------------
-// Translations
-// ---------------------------------------------------------------------------
-
-/// Every text Options > Mods shows for the mod, by translation key, in the
-/// game's language codes. `mixins/kidmode/lang/<code>.json` holds the same, as
-/// vanilla-style language files (a test keeps them equal). A key a language
-/// lacks reads in English. `options.on` and `options.off` are vanilla's own
-/// keys, so the toggles read as the game's other ON/OFF buttons.
-pub const EN_US: &[(&str, &str)] = &[
-    ("kidmode.name", "Kid Mode"),
-    (
-        "kidmode.description",
-        "A gentler world: friendly and invulnerable mobs, an invulnerable player, sunny days and nights that pass by themselves.",
-    ),
-    ("kidmode.setting.invulnerable_player", "Invulnerable player"),
-    ("kidmode.setting.friendly_enemies", "Friendly enemies"),
-    (
-        "kidmode.setting.friendly_neutral_mobs",
-        "Friendly neutral mobs",
-    ),
-    (
-        "kidmode.setting.friendly_mobs_fight_mobs",
-        "Friendly mobs fight other mobs",
-    ),
-    (
-        "kidmode.setting.invulnerable_animals",
-        "Invulnerable animals",
-    ),
-    (
-        "kidmode.setting.invulnerable_enemies",
-        "Invulnerable enemies",
-    ),
-    (
-        "kidmode.setting.invulnerable_ender_dragon",
-        "Invulnerable Ender Dragon",
-    ),
-    ("kidmode.setting.always_sunny", "Always sunny"),
-    ("kidmode.setting.auto_sleep", "Auto sleep"),
-    ("kidmode.setting.tame_for_loot", "Tame mobs for loot"),
-    ("kidmode.setting.taming_hints", "Taming hints"),
-    ("options.on", "ON"),
-    ("options.off", "OFF"),
-];
-
-/// Polish. Terms follow docs/translations/dictionary.md.
-pub const PL_PL: &[(&str, &str)] = &[
-    ("kidmode.name", "Tryb dla dzieci"),
-    (
-        "kidmode.description",
-        "Łagodniejszy świat: przyjazne i nieśmiertelne stworzenia, nieśmiertelny gracz, słoneczne dni i noce, które mijają same.",
-    ),
-    ("kidmode.setting.invulnerable_player", "Nieśmiertelny gracz"),
-    ("kidmode.setting.friendly_enemies", "Przyjaźni wrogowie"),
-    (
-        "kidmode.setting.friendly_neutral_mobs",
-        "Przyjazne neutralne stworzenia",
-    ),
-    (
-        "kidmode.setting.friendly_mobs_fight_mobs",
-        "Przyjazne stworzenia walczą z innymi",
-    ),
-    (
-        "kidmode.setting.invulnerable_animals",
-        "Nieśmiertelne zwierzęta",
-    ),
-    (
-        "kidmode.setting.invulnerable_enemies",
-        "Nieśmiertelni wrogowie",
-    ),
-    (
-        "kidmode.setting.invulnerable_ender_dragon",
-        "Nieśmiertelny Smok Endu",
-    ),
-    ("kidmode.setting.always_sunny", "Zawsze słonecznie"),
-    ("kidmode.setting.auto_sleep", "Automatyczny sen"),
-    ("kidmode.setting.tame_for_loot", "Oswajanie stworzeń"),
-    ("kidmode.setting.taming_hints", "Podpowiedzi oswajania"),
-    ("options.on", "Wł."),
-    ("options.off", "Wył."),
-];
-
-/// The languages the mod ships, by the game's language code.
-pub const LANGUAGES: &[(&str, &[(&str, &str)])] = &[("en_us", EN_US), ("pl_pl", PL_PL)];
-
-/// The mod's own text for `key` in language `code` (a regional variant such
-/// as `pl` reads its language's file), else English, else the key.
-pub fn own_text(code: &str, key: &str) -> String {
-    let code = code.to_ascii_lowercase();
-    let find =
-        |table: &[(&str, &'static str)]| table.iter().find(|(k, _)| *k == key).map(|(_, v)| *v);
-    LANGUAGES
-        .iter()
-        .find(|(c, _)| *c == code || c.split('_').next() == Some(code.as_str()))
-        .and_then(|(_, table)| find(table))
-        .or_else(|| find(EN_US))
-        .unwrap_or(key)
-        .to_owned()
-}
-
-/// Text for `key` in language `code`: the game's current language first
-/// (`game`: vanilla's keys, and resource packs that add
-/// `assets/kidmode/lang/<code>.json`), then the mod's own.
-pub fn text(code: &str, key: &str, game: impl Fn(&str) -> Option<String>) -> String {
-    game(key).unwrap_or_else(|| own_text(code, key))
-}
+/// The languages the mod ships (`assets/kidmode/lang/<code>.json`).
+pub const LANGUAGES: &[&str] = &["en_us", "pl_pl"];
 
 // ---------------------------------------------------------------------------
 // Settings
@@ -164,16 +59,6 @@ impl Setting {
     /// The label's translation key.
     pub fn label_key(&self) -> String {
         format!("kidmode.setting.{}", self.key)
-    }
-
-    /// The button's label, `Label: ON`, with `tr` translating a key.
-    pub fn button(&self, tr: impl Fn(&str) -> String) -> String {
-        let state = tr(if self.on() {
-            "options.on"
-        } else {
-            "options.off"
-        });
-        format!("{}: {}", tr(&self.label_key()), state)
     }
 }
 
@@ -233,15 +118,12 @@ pub fn auto_sleep_now(dimension: &str, day_time: i64) -> bool {
 /// it would turn).
 pub const SUNNY_TICKS: i32 = 24_000 * 7;
 
-static LOADED: AtomicBool = AtomicBool::new(false);
-
-/// Reads every setting from its file the first time, then keeps them. Shared by
-/// the client thread (settings page) and the server thread (mobs), hence atomics.
+/// Reads every setting (`get`: a key's stored value). The server reads them
+/// every second, and the client when the player changes one; the two share
+/// these statics in single player, hence atomics.
 pub fn load(get: impl Fn(&str) -> Option<String>) {
-    if !LOADED.swap(true, Ordering::AcqRel) {
-        for s in SETTINGS {
-            s.set(s.read(get(s.key)));
-        }
+    for s in SETTINGS {
+        s.set(s.read(get(s.key)));
     }
 }
 
@@ -370,10 +252,9 @@ pub fn is_animal(kind: &str) -> bool {
 // ---------------------------------------------------------------------------
 // Friendly enemies / Friendly neutral mobs
 // ---------------------------------------------------------------------------
-// Hooked into the mob engine (horizon_client_lib::mobs), not the mod events:
-// `Mob::spares_players` is vanilla's `canAttack(player)`, which every target
-// goal, revenge (`HurtByTargetGoal`), brain and kept target goes through. As a
-// backup, what a friendly mob's own tick does to the player is dropped.
+// `living_change_target` drops a player (or, unless friendly mobs may fight,
+// any) target a friendly mob picks, from goals and brains alike, and the
+// player's invulnerability catches whatever still lands.
 
 /// Whether mob type `kind` may not attack players with the current settings.
 pub fn friendly_to_players(kind: &str) -> bool {
@@ -411,49 +292,12 @@ pub fn spares_mobs_of(id: u32, kind: &str) -> bool {
     !FRIENDLY_FIGHT_MOBS.on() && friendly(id, kind)
 }
 
-/// The mob whose tick is running on this thread, as `Mob::tick` started it.
-#[derive(Clone, Copy, Debug, PartialEq)]
-pub struct Ticking {
-    /// Where its events start in the tick's event list.
-    pub from: usize,
-    pub friendly: bool,
-    pub spares_mobs: bool,
-    pub invulnerable: bool,
-}
-
-thread_local! {
-    /// The ticking mobs, innermost last, per thread: mobs tick on several threads.
-    static TICKING: std::cell::RefCell<Vec<Ticking>> = const { std::cell::RefCell::new(Vec::new()) };
-}
-
-/// Mob `id` of type `kind` starts its tick with `len` events already queued.
-pub fn tick_start(id: u32, kind: &str, len: usize) {
-    let t = Ticking {
-        from: len,
-        friendly: friendly(id, kind),
-        spares_mobs: spares_mobs_of(id, kind),
-        invulnerable: invulnerable(kind),
-    };
-    TICKING.with(|s| s.borrow_mut().push(t));
-}
-
-/// The matching start, when the tick ends.
-pub fn tick_end() -> Option<Ticking> {
-    TICKING.with(|s| s.borrow_mut().pop())
-}
-
-/// The mob ticking on this thread, if any.
-pub fn ticking() -> Option<Ticking> {
-    TICKING.with(|s| s.borrow().last().copied())
-}
-
 // ---------------------------------------------------------------------------
 // Invulnerable animals / Invulnerable enemies
 // ---------------------------------------------------------------------------
-// `Mob::refuses_damage` is vanilla's `isInvulnerableTo` at the start of
+// `entity_invulnerability_check` is vanilla's `isInvulnerableTo` at the start of
 // `hurtServer`: a refused hit deals no damage, sets no attacker (no panic, no
-// revenge) and gives no knockback. Fire panic and explosion pushes are hooked
-// separately.
+// revenge) and gives no knockback. Explosion pushes are hooked separately.
 
 /// Whether mob type `kind` is invulnerable with the current settings.
 pub fn invulnerable(kind: &str) -> bool {
@@ -467,19 +311,6 @@ pub fn is_enemy_for_invulnerability(kind: &str) -> bool {
     is_hostile(kind) || (is_neutral(kind) && !is_animal(kind))
 }
 
-thread_local! {
-    /// A witch's fire, hidden while it picks a potion (`witch::drink`).
-    static HIDDEN_FIRE: std::cell::Cell<i32> = const { std::cell::Cell::new(0) };
-}
-
-pub fn stash_fire(ticks: i32) {
-    HIDDEN_FIRE.with(|f| f.set(ticks));
-}
-
-pub fn unstash_fire() -> i32 {
-    HIDDEN_FIRE.with(|f| f.replace(0))
-}
-
 /// Damage types that still hurt an invulnerable mob or dragon.
 pub const BYPASSES_INVULNERABILITY: &[&str] = &["minecraft:generic_kill", "minecraft:out_of_world"];
 
@@ -489,47 +320,27 @@ pub fn refuse_dragon_damage(damage_type: Option<&str>) -> bool {
     INVULNERABLE_DRAGON.on() && !damage_type.is_some_and(|t| BYPASSES_INVULNERABILITY.contains(&t))
 }
 
-/// Invulnerable mobs that refused a hit, by id, for the explosion push (which
-/// names the mob by id only).
-static PROTECTED: Mutex<Option<HashMap<u32, bool>>> = Mutex::new(None);
+/// Mob type `kind` is hit (`bypasses`: `/kill`, the void): true to refuse
+/// the hit.
+pub fn refuse_damage(kind: &str, bypasses: bool) -> bool {
+    !bypasses && invulnerable(kind)
+}
+
+/// Whether damage of type `damage_type` still hurts the invulnerable.
+pub fn bypasses(damage_type: &str) -> bool {
+    BYPASSES_INVULNERABILITY.contains(&damage_type)
+}
+
+/// A cap on the per-mob maps, so a long session can't grow them for ever.
 const IDS_CAP: usize = 65_536;
-
-/// Mob `entity` of type `kind` is hit (`bypasses`: `/kill`, the void): true to
-/// refuse the hit.
-pub fn refuse_damage(entity: u32, kind: &str, bypasses: bool) -> bool {
-    if bypasses || !invulnerable(kind) {
-        return false;
-    }
-    if let Ok(mut ids) = PROTECTED.lock() {
-        let ids = ids.get_or_insert_with(HashMap::new);
-        if ids.len() >= IDS_CAP {
-            ids.clear();
-        }
-        ids.insert(entity, is_animal(kind));
-    }
-    true
-}
-
-/// Whether mob `entity`, seen refusing a hit, is still invulnerable.
-pub fn protected_id(entity: u32) -> bool {
-    let animal = PROTECTED
-        .lock()
-        .ok()
-        .and_then(|ids| ids.as_ref()?.get(&entity).copied());
-    match animal {
-        Some(true) => INVULNERABLE_ANIMALS.on(),
-        Some(false) => INVULNERABLE_ENEMIES.on(),
-        None => false,
-    }
-}
 
 // ---------------------------------------------------------------------------
 // Tame mobs for loot (docs/taming.md)
 // ---------------------------------------------------------------------------
-// Feeding a mob its taming item may tame it (1 in 3). A tamed mob keeps the
-// entity tag `kidmode_tamed` (saved with the world); the game copies the tagged
-// mobs into `TAMED` before mobs tick, so the mob engine's hooks, which see a
-// mob but not its tags, can ask `tamed(id)`.
+// Feeding a mob its taming item may tame it (1 in 3). A tamed mob carries the
+// attachment `kidmode:tamed` (saved with the world and synced to players), or
+// the entity tag `kidmode_tamed` (`/tag`); the server copies the tamed mobs
+// into `TAMED` each tick, with their loot and sparkle timers.
 
 /// The entity tag a tamed mob carries.
 pub const TAMED_TAG: &str = "kidmode_tamed";
@@ -864,24 +675,6 @@ pub fn lead_at_middle(kind: &str) -> bool {
     leashable(kind)
 }
 
-/// Feeding results waiting for the mob's next tick to show their hearts
-/// (`true`) or smoke: during a player's turn the game can't send particles.
-static FEEDBACK: Mutex<Option<HashMap<u32, bool>>> = Mutex::new(None);
-
-pub fn queue_feedback(id: u32, success: bool) {
-    if let Ok(mut f) = FEEDBACK.lock() {
-        let f = f.get_or_insert_with(HashMap::new);
-        if f.len() >= IDS_CAP {
-            f.clear();
-        }
-        f.insert(id, success);
-    }
-}
-
-pub fn take_feedback(id: u32) -> Option<bool> {
-    FEEDBACK.lock().ok()?.as_mut()?.remove(&id)
-}
-
 /// The tamed mobs by id, and each one's loot and sparkle countdowns.
 struct Tamed {
     ids: HashMap<u32, Timers>,
@@ -911,8 +704,7 @@ pub fn tamed(id: u32) -> bool {
             .is_some_and(|t| t.as_ref().is_some_and(|t| t.ids.contains_key(&id)))
 }
 
-/// Mob `id` is tamed (`true`, it carries the tag) or not, as the game saw it
-/// before mobs tick. `roll(n)` is a random number below `n`.
+/// Mob `id` is tamed (`true`) or not, as the server sees it. `roll(n)` is a random number below `n`.
 pub fn set_tamed(id: u32, is_tamed: bool, roll: impl FnOnce(i32) -> i32) {
     let Ok(mut t) = TAMED.lock() else { return };
     let t = t.get_or_insert_with(|| Tamed {
@@ -978,7 +770,7 @@ pub fn tamed_tick(id: u32, kind: &str, adult: bool, mut roll: impl FnMut(i32) ->
 // ---------------------------------------------------------------------------
 // Looking at a mob that can be tamed and isn't yet, from up to `HINT_DISTANCE`
 // blocks, shows a thought bubble over its head with its taming item. Drawn on
-// the client, as a layer on the mob (`tame_hint.rs`).
+// the client, after the mob (`render_living_post`, in `hint.rs`).
 
 /// How far away (blocks, from the eyes) a looked-at mob shows its bubble.
 pub const HINT_DISTANCE: f64 = 8.0;
@@ -1290,37 +1082,24 @@ mod tests {
         FRIENDLY_ENEMIES.set(false);
         assert!(!friendly_to_players("minecraft:creeper"));
 
-        assert!(refuse_damage(10, "minecraft:cow", false));
-        assert!(protected_id(10));
-        assert!(!refuse_damage(10, "minecraft:cow", true));
-        assert!(!refuse_damage(11, "minecraft:zombie", false));
+        assert!(refuse_damage("minecraft:cow", false));
+        assert!(!refuse_damage("minecraft:cow", true));
+        assert!(!refuse_damage("minecraft:zombie", false));
         INVULNERABLE_ENEMIES.set(true);
-        assert!(refuse_damage(11, "minecraft:zombie", false));
-        assert!(refuse_damage(13, "minecraft:zombified_piglin", false));
-        assert!(refuse_damage(14, "minecraft:iron_golem", false));
+        assert!(refuse_damage("minecraft:zombie", false));
+        assert!(refuse_damage("minecraft:zombified_piglin", false));
+        assert!(refuse_damage("minecraft:iron_golem", false));
         INVULNERABLE_ANIMALS.set(false);
-        assert!(!refuse_damage(15, "minecraft:wolf", false));
-        assert!(!refuse_damage(10, "minecraft:cow", false));
-        assert!(!protected_id(10));
-        assert!(protected_id(11));
-        assert!(!refuse_damage(12, "minecraft:player", false));
+        assert!(!refuse_damage("minecraft:wolf", false));
+        assert!(!refuse_damage("minecraft:cow", false));
+        assert!(!refuse_damage("minecraft:player", false));
+        assert!(bypasses("minecraft:out_of_world") && !bypasses("minecraft:fall"));
 
         assert!(!refuse_dragon_damage(Some("minecraft:arrow")));
         INVULNERABLE_DRAGON.set(true);
         assert!(refuse_dragon_damage(Some("minecraft:arrow")));
         assert!(refuse_dragon_damage(None));
         assert!(!refuse_dragon_damage(Some("minecraft:generic_kill")));
-    }
-
-    #[test]
-    fn tick_starts_nest() {
-        tick_start(1, "minecraft:cow", 3);
-        tick_start(2, "minecraft:pig", 5);
-        assert_eq!(ticking().map(|t| t.from), Some(5));
-        assert_eq!(tick_end().map(|t| t.from), Some(5));
-        assert_eq!(tick_end().map(|t| t.from), Some(3));
-        assert_eq!(tick_end(), None);
-        assert_eq!(ticking(), None);
     }
 
     #[test]
@@ -1333,65 +1112,32 @@ mod tests {
         assert_eq!(stored(true), "true");
     }
 
-    /// `lang/<code>.json` as the mod writes it: the table in order, one key a line.
-    fn lang_file(table: &[(&str, &str)]) -> String {
-        let escape = |s: &str| s.replace('\\', "\\\\").replace('"', "\\\"");
-        let lines: Vec<String> = table
-            .iter()
-            .map(|(k, v)| format!("  \"{}\": \"{}\"", escape(k), escape(v)))
-            .collect();
-        format!("{{\n{}\n}}\n", lines.join(",\n"))
+    /// The keys of a language file, in order (one `"key": "value"` a line).
+    fn lang_keys(code: &str) -> Vec<String> {
+        let path = format!(
+            "{}/assets/kidmode/lang/{code}.json",
+            env!("CARGO_MANIFEST_DIR")
+        );
+        let file = std::fs::read_to_string(&path).unwrap_or_else(|e| panic!("{path}: {e}"));
+        file.lines()
+            .filter_map(|l| l.trim().strip_prefix('"')?.split_once('"'))
+            .map(|(k, _)| k.to_owned())
+            .collect()
     }
 
     #[test]
     fn translations_are_complete() {
-        for (code, table) in LANGUAGES {
-            let keys: Vec<&str> = table.iter().map(|(k, _)| *k).collect();
-            let english: Vec<&str> = EN_US.iter().map(|(k, _)| *k).collect();
+        let english = lang_keys("en_us");
+        for code in LANGUAGES {
             assert_eq!(
-                keys, english,
+                lang_keys(code),
+                english,
                 "{code} has other keys than en_us, or in another order"
-            );
-            let path = format!(
-                "{}/mixins/kidmode/lang/{code}.json",
-                env!("CARGO_MANIFEST_DIR")
-            );
-            let file = std::fs::read_to_string(&path).unwrap_or_default();
-            assert_eq!(
-                file,
-                lang_file(table),
-                "{path} differs from {code} in runtime.rs"
             );
         }
         for s in SETTINGS {
-            assert!(
-                EN_US.iter().any(|(k, _)| *k == s.label_key()),
-                "{} has no label",
-                s.key
-            );
+            assert!(english.contains(&s.label_key()), "{} has no label", s.key);
         }
-    }
-
-    #[test]
-    fn texts_follow_the_language() {
-        let none = |_: &str| None;
-        assert_eq!(own_text("pl_pl", "kidmode.name"), "Tryb dla dzieci");
-        assert_eq!(own_text("PL_PL", "kidmode.name"), "Tryb dla dzieci");
-        assert_eq!(own_text("de_de", "kidmode.name"), "Kid Mode");
-        assert_eq!(own_text("pl_pl", "kidmode.nothing"), "kidmode.nothing");
-        assert_eq!(text("pl_pl", "options.on", |_| Some("Wł.".into())), "Wł.");
-        let tr = |k: &str| text("pl_pl", k, none);
-        assert_eq!(
-            INVULNERABLE_PLAYER.button(tr),
-            format!(
-                "Nieśmiertelny gracz: {}",
-                tr(if INVULNERABLE_PLAYER.on() {
-                    "options.on"
-                } else {
-                    "options.off"
-                })
-            )
-        );
         assert_eq!(AUTO_SLEEP.label_key(), "kidmode.setting.auto_sleep");
     }
 
@@ -1479,10 +1225,6 @@ mod tests {
         );
         assert!(friendly(501, "minecraft:cow"));
         assert!(lead_at_middle("minecraft:zombie") && !lead_at_middle("minecraft:cow"));
-        assert_eq!(take_feedback(7), None);
-        queue_feedback(7, true);
-        assert_eq!(take_feedback(7), Some(true));
-        assert_eq!(take_feedback(7), None);
     }
 
     #[test]

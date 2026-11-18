@@ -1,6 +1,0 @@
-# The Rust horizon-launcher 0.2.69 compiles native mods with (`horizon-launcher
-# rust status`), so `cargo test` checks the mod with the compiler the game uses.
-[toolchain]
-channel = "1.99.1"
-components = ["rustfmt", "clippy"]
-profile = "minimal"
