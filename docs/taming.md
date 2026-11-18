@@ -100,7 +100,7 @@ from a dried ghast), villagers, wandering traders and golems.
 Left out: the illagers, the bosses, and rare drops (wither skull, evoker's
 totem, a zombie's iron ingot, carrot and potato).
 
-The table lives in code in `mixins/kidmode/runtime.rs` (one list of mob, loot,
+The table lives in code in `src/logic.rs` (one list of mob, loot,
 taming items), so it's easy to change.
 
 ## Taming
@@ -110,7 +110,7 @@ taming items), so it's easy to change.
   is used up, except in creative.
 - A baby mob (baby zombie, baby hoglin and so on) can be tamed the same way.
 - Any player can tame a mob and any player can collect its loot or lead it.
-  Since 0.9.1 the mod remembers who tamed it (veinmine, 2026-11-17: only to
+  The mod remembers who tamed it (veinmine, 2026-11-17: only to
   show their head in the taming-hint bubble to other players; it limits
   nothing).
 - Taming an already tamed mob does nothing and doesn't use up the item.
@@ -161,41 +161,27 @@ for zombies, skeletons or creepers, and a mixin mod can't ship textures.
 
 ## How it works (for implementation)
 
-Hook points found in Horizon's source (revision `9f42064c`):
+On the mod API's hooks (`src/lib.rs`), since 0.11.0:
 
-- **Feeding:** a cancellable HEAD hook on
-  `horizon_client::game::creatures::Game::interact_mob`, before vanilla's own
-  interactions (name tags, leads, buckets).
-- **Tamed state:** the entity tag `kidmode_tamed` in the mob's saved `Tags`
-  (`game.persist.raw`), so it's saved with the world and survives conversions.
-  `/tag @e[type=zombie] add kidmode_tamed` tames a mob for testing.
-  `Extra.tame` and `Extra.owner` aren't used, because the game saves them only
-  for cats, wolves and the like. A HEAD hook on
-  `horizon_client::game::creatures::Game::tick_creatures` copies the tagged
-  mobs into the runtime's `TAMED` map before each level's mobs tick, since the
-  mob engine's hooks see a mob but not its tags. The same hook keeps the
-  synced attachment `kidmode:tamed` (`mixins/kidmode/sync.rs`) on each tagged
-  mob, so every player's game knows it is tamed: Horizon's equivalent of
-  vanilla's synched entity data, which a tamed wolf uses for its tamed flag
-  and owner. Horizon sends synced attachments only once it sees a native mod
-  loaded, which a mixin mod doesn't count as, so the hook switches the
-  sending on (`hub.sync_attachments`) and resends the tamed mobs once.
-- **Loot and sparkles:** from the mob tick hook (`tick_end.rs`), which pushes
-  `MobEvent::DropItem` and particle events, with a per-mob timer like
-  `egg_time`. A frog's froglight comes from its variant
-  (`mobs::finalize::variant_name`).
-- **Vanilla's pets:** the same scan hook counts a pet in `PET_LOOT` as tamed
-  when its `Extra.tame` is set (no tag, no synced attachment: vanilla sends
-  its tame flag itself).
-- **Hearts and smoke:** queued by the feeding hook and shown from the mob's
-  next tick: during a player's turn the game has no LAN hub to send particles
-  through, so particles sent there never reach the screen.
-- **No teleports:** cancellable HEAD hooks on `mobs::enderman::teleport_to`
-  and `mobs::shulker::teleport` refuse a tamed mob's teleport.
-- **Lead position:** a cancellable HEAD hook on `mobs::leash::leash_offset`
-  hangs the lead at the centre of the mob (half its height).
-- **Leads:** a cancellable HEAD hook on `horizon_client_lib::mobs::leash::can_be_leashed` (a RETURN hook is refused there: the function has a nested `use`).
-- **Persistence and sunlight:** set `persistent` when taming, and skip
-  `burn_undead` for tamed mobs (as for invulnerable undead).
-- **Friendliness:** the existing friendly checks in `runtime.rs` also cover
-  tamed mobs.
+- **Feeding and leads:** `entity_interact` on the server, before the mob's own
+  interactions (name tags, buckets); the player is the host's
+  `acting_player`. A lead on a leashable mob that isn't on one is tied with
+  `EntityRef::leash_to`.
+- **Tamed state:** the attachment `kidmode:tamed` (`src/tamed.rs`): saved
+  with the mob, copied on conversion, and synced to every player tracking it,
+  with the tamer's id, name and profile. The entity tag `kidmode_tamed`
+  (`/tag @e[type=zombie,limit=1,sort=nearest] add kidmode_tamed`) counts too;
+  such a mob gets the attachment (without a tamer) on its next tick.
+- **Loot, sparkles, persistence:** `entity_tick_post` (the mod listens through
+  `entity_tick_listened`) copies the tamed mobs into `logic`'s `TAMED` map with
+  their timers, marks them persistent, and drops loot with
+  `EntityRef::spawn_at_location`. A frog's froglight comes from its saved
+  `variant`.
+- **Vanilla's pets:** counted as tamed when `LivingRef::is_tamed` says so (no
+  attachment: vanilla sends its tame flag itself).
+- **Hearts and smoke:** sent at once with `LevelRef::send_particles`.
+- **No despawning, no teleports:** `mob_despawn` (deny) and
+  `ender_entity_teleport` (cancel) for tamed mobs.
+- **Friendliness:** `logic::friendly` counts tamed mobs.
+- Not possible through the API yet: the lead hanging from the middle of the
+  body, and tamed undead not burning in daylight ([missing.md](missing.md)).
