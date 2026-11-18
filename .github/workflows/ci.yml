@@ -46,6 +46,7 @@ jobs:
           rustup toolchain install "$rust" --profile minimal --component rustfmt,clippy
           rustup default "$rust"
           rustc --version
-      - run: cargo fmt --all --check
+      # Not --all: that would also check the SDK crates, which are path dependencies.
+      - run: cargo fmt --check
       - run: cargo clippy --all-targets -- -D warnings
       - run: cargo test
