@@ -1,37 +1,61 @@
 # Kid Mode
 
-Kid Mode (repository and mod id `kidmode`) is a native [Horizon](https://playhorizon.dev) mod by veinmine,
-packaged as one `.hmod` (Horizon's mod format since the mod API, November 2026). It uses the mod API's hooks
-only, no mixins.
+**A gentler Minecraft world for young players**, made for [Horizon](https://playhorizon.dev).
 
-```sh
-cargo horizon-mod check                                          # fetches the SDK into .horizon/sdk/ (once)
-cargo test                                                       # the mod's own logic
-horizon-launcher native-build . --trust-native-code              # build it into the selected instance
-cargo horizon-mod build                                          # the package: target/horizon-mod/kidmode.hmod
-```
+![A tamed creeper and a tamed zombie in a fenced pen, each with a heart in a thought bubble over its head](docs/images/screenshot.jpg)
 
-`cargo horizon-mod check` also checks the mod for WebAssembly, which needs `rustup target add
-wasm32-unknown-unknown`; once the SDK is in `.horizon/sdk/`, plain `cargo check`, `cargo clippy` and
-`cargo test` work without it.
+Kid Mode takes the fear out of the game without taking the game away. Monsters still roam the world, but
+they leave you alone. You can't get hurt, animals can't be hurt, and the mobs you'd normally fight can be
+befriended instead, tamed and kept as pets that bring you useful things.
 
-The layout is the native `.hmod` one, at the repository root:
+It's meant for children who want to build, explore and play with the creatures of the world, and for
+parents who'd like them to do that without the scary parts.
 
-- `horizon-mod.toml`: the manifest; `[native]` pins the exact Horizon build (`horizon`) and horizon-mixins
-  commit (`mixins`) it is made for. With no `[native.*]` tables, the package lists the API items it uses
-  (`uses.json`), so the launcher can build it unchanged on a newer Horizon build where those items didn't
-  change (`cargo horizon-mod fits`). To move the pin, run `cargo horizon-mod update`.
-- `src/lib.rs`: the hooks (`impl Hooks`); `src/logic.rs`: what the mod decides, free of the game, with the
-  tests; `src/hint.rs`: the taming hints; `src/tamed.rs`: the `kidmode:tamed` attachment.
-- `assets/kidmode/`: translations (English, Polish) and the white sprite the taming bubble is drawn with.
+## What it does
 
-Features and their settings are listed in [docs/features.md](docs/features.md); what the API can't do yet,
-compared with the old mixin version, in [docs/missing.md](docs/missing.md). The Polish terminology is in
-[docs/translations/dictionary.md](docs/translations/dictionary.md). CI (`.github/workflows/ci.yml`) runs
-`cargo fmt --check`, clippy and the tests against the pinned SDK.
+- **You can't get hurt.** No damage from mobs, falls, fire, lava, drowning or explosions, and no starving.
+- **Monsters are friendly.** Zombies, skeletons, creepers, spiders and the rest, even the bosses, never
+  chase or attack you. Endermen don't mind being looked at, and wolves, bees and other neutral mobs stay calm.
+- **Animals can't be hurt.** Cows, pigs, sheep, horses, fish and the other animals are safe from everything.
+- **Tame monsters and animals.** Feed a creature the food it likes (raw meat for a zombie, a flower for a
+  creeper, a golden carrot for a cow) and it may become yours. A tamed creature stays where it is, never
+  disappears, sparkles now and then, and every few minutes drops something useful: string, bones,
+  gunpowder, leather and more.
+- **Taming hints.** Look at a creature and a little thought bubble shows what food it likes, or a heart once
+  it's tamed. A creature someone else tamed shows that player's face, so everyone can tell whose pet it is.
+- **Optional extras**, off unless you turn them on: sunny weather all the time, nights that pass by
+  themselves, monsters that can't be hurt either, and an Ender Dragon that can't be hurt.
+
+Every feature can be turned on or off on the mod's settings page in the game (**Options > Mods > Kid Mode**).
+The mod speaks English and Polish. The full list of features and their settings is in
+[docs/features.md](docs/features.md).
+
+## What works today
+
+Kid Mode 0.11 runs on the newest Horizon. Everything in the list above works, in single player and when
+friends join your world. Some smaller touches from earlier versions aren't possible on the new Horizon yet:
+
+- Leads can't be put on monsters, only on the animals the game normally allows.
+- Undead monsters still catch fire in daylight (it doesn't hurt them).
+- The Elder Guardian's curse still reaches you, and the Ender Dragon still swoops and breathes at you,
+  although nothing it does can hurt you.
+- The thought bubble grows in and out instead of fading.
+
+## Planned
+
+- Bring back the smaller touches above as soon as Horizon makes them possible.
+- Make more creatures from other mods friendly and tameable. Today Kid Mode covers the game's own mobs.
+- Publish Kid Mode in Horizon's mod list, so it can be installed with one click.
+
+## Installing
+
+Kid Mode needs the [Horizon launcher](https://playhorizon.dev). On its **Mods** page, choose **Add from
+GitHub** and paste this page's address, then **Build**. Turn the features you want on or off in the game's
+**Options > Mods > Kid Mode**.
+
+Building it yourself, and how it works inside: [docs/development.md](docs/development.md).
 
 ## Licence
 
-Copyright © 2026 veinmine. Kid Mode is free software under the GNU General
-Public License, version 3 or (at your option) any later version
-(`GPL-3.0-or-later`); see [LICENSE](LICENSE).
+Copyright © 2026 veinmine. Kid Mode is free software under the GNU General Public License, version 3 or
+(at your option) any later version; see [LICENSE](LICENSE).
