@@ -138,9 +138,9 @@ and a heart in its thought bubble (see Taming hints). The tamed state is saved
 with the mob as the attachment `kidmode:tamed`; `/tag <mob> add kidmode_tamed`
 tames one too. Any player can tame a mob and collect its loot.
 
-Every enemy and neutral mob in the table can be put on a lead, tamed or not,
-to bring it home. Animals keep vanilla's leads (none on fish, squid or bats).
-A tamed enderman or shulker never teleports, so it doesn't break its lead.
+Leads work as in vanilla: animals take them, enemies don't (0.10 let every
+enemy and neutral mob in the table take one; the API can't yet, see
+[missing.md](missing.md)). A tamed enderman or shulker never teleports.
 
 | Mob | Loot | Tame with |
 |---|---|---|

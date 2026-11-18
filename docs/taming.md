@@ -141,9 +141,9 @@ Vanilla doesn't allow leads on monsters. Animals keep vanilla's lead rules
 (so no leads on fish, squid or bats). Leads work as usual otherwise: shears cut them, and
 a lead breaks if pulled too far.
 
-To check in testing: a lead on a flyer (ghast, phantom) and on a mob that
-teleports (enderman) or hides (shulker). If one of them misbehaves on a lead,
-we decide what to do about that mob then.
+Since 0.11.0 this doesn't work: the mod API can't make a monster leashable
+yet (`EntityRef::leash_to` is refused for a mob vanilla can't leash), so leads
+work as in vanilla until it can ([missing.md](missing.md)).
 
 ## How a tamed mob is shown
 
@@ -166,7 +166,7 @@ On the mod API's hooks (`src/lib.rs`), since 0.11.0:
 - **Feeding and leads:** `entity_interact` on the server, before the mob's own
   interactions (name tags, buckets); the player is the host's
   `acting_player`. A lead on a leashable mob that isn't on one is tied with
-  `EntityRef::leash_to`.
+  `EntityRef::leash_to`, which the game refuses for monsters for now.
 - **Tamed state:** the attachment `kidmode:tamed` (`src/tamed.rs`): saved
   with the mob, copied on conversion, and synced to every player tracking it,
   with the tamer's id, name and profile. The entity tag `kidmode_tamed`

@@ -7,8 +7,11 @@ engine's own functions; in the new format those functions can't take mixins (the
 `#[horizon_mod_api_macros::replaceable]` there can). Everything else was ported to hooks. This page lists
 what behaves differently from 0.10.0, and what still has to be checked in a game.
 
-Checked against Horizon build `0b14f8a` (SDK of 18 Nov 2026). None of 0.11.0 has run in a game yet: the
-first Nightly with mod tools hadn't shipped when it was written.
+Built on Horizon build `0b14f8a` (Nightly of 18 Nov 2026) and tried in a game on 18 Nov 2026, in a separate
+test instance: invulnerable animals (a cow took no damage, a villager did), friendly zombies and skeletons at
+night (no damage taken), the invulnerable player (`/damage` refused), taming a zombie with raw beef (hearts,
+the item used up, the `kidmode:tamed` attachment with the tamer's profile, persistence, sparkles, no more
+feeding once tamed), and the taming hints (the heart over the tamed zombie, a flower over a creeper).
 
 ## Missing or different
 
@@ -19,14 +22,15 @@ first Nightly with mod tools hadn't shipped when it was written.
 | Friendly Elder Guardian | Its curse (mining fatigue) was dropped. | You still get the curse. | `mob_effect_applicable` doesn't say who applies the effect. |
 | Friendly Ender Dragon | Treated you as a creative player: no charging or breath at you. | It still charges and breathes at you, but no hit, breath or wing push lands. | Its fight goes through game-crate code with no hook; a mixin could do it. |
 | Friendly Wither, "fight other mobs" on | Never shot its idle volleys at random spots. | It may. | No hook on the Wither's ranged attack. |
-| Leads | The lead hung from the middle of an enemy's body. | It hangs where vanilla puts it. | No hook on the lead's position. |
+| Leads on enemies and neutral mobs | Every enemy and neutral mob that can be tamed took a lead, tamed or not, hung from the middle of its body. | Leads work as in vanilla: none on monsters. The mod tries `EntityRef::leash_to` on a lead click, but the game refuses it for a mob vanilla can't leash (tested on a creeper). | No hook on "can be leashed" or on the lead's position. |
 | Taming hints, appearing | The bubble faded in and out. | It grows in and shrinks away. | A mob's extras are drawn opaque. |
+| Taming hints, colour | The bubble was pure white. | It is light grey in daylight: the quads take the world's side shading. | The draw context has no unshaded quad. |
 | Taming hints, wolves and ocelots | An angry wolf showed no bubble; an ocelot that trusts you showed the heart. | A wolf always shows the bone; an ocelot shows the fish until tamed. | A wolf's anger and an ocelot's trust can't be read on the client. |
 | Upgrading | Mobs tamed with 0.10.0 kept the `kidmode_tamed` tag. | The tag still tames a mob. No other compatibility (veinmine: none needed before 1.0). | — |
 
-## To check in a game
+## Still to check in a game
 
-These are written against the API's documentation, not tested yet:
+Written against the API's documentation, not tried yet:
 
 - Friendly mobs: `living_change_target` really stops every target pick, brains included (warden,
   piglins, hoglins, goats). In 0.9 the old native hook fired after the mob had acted; the API's
@@ -38,9 +42,8 @@ These are written against the API's documentation, not tested yet:
 - A witch's fire resistance is refused at `living_entity_use_item_start`; witches may drink another way.
 - Auto sleep: `set_clock_time` to the next morning, weather cleared with `set_weather(0, 0, …)`,
   time since rest reset for every Overworld player.
-- Leads: `entity_interact` ties the lead with `leash_to` before vanilla refuses it on a monster.
-- Taming hints: the white sprite `kidmode:block/white` loads into the block atlas, the quads face the
-  camera (not culled from behind), the head shows the tamer's skin, and items are flattened.
+- Taming hints: the tamer's head (seen by another player), a block on the bubble (an enderman's grass
+  block), and that a block between the player and the mob hides the bubble (it showed through leaves).
 - Settings: the page shows the eleven toggles, and a dedicated server reads its own setting files
   (`Host::setting` on the server).
 - The package: `cargo horizon-mod build` packs the `Cargo.lock` Cargo generates (it isn't committed;
