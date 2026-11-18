@@ -18,22 +18,7 @@ jobs:
   check:
     runs-on: ubuntu-latest
     steps:
-      # The repository uses SHA-256 object IDs. actions/checkout creates a
-      # SHA-1 repository and then can't fetch the commit, so check out by hand.
-      - name: Check out (SHA-256 repository)
-        env:
-          SERVER: ${{ github.server_url }}
-          REPO: ${{ github.repository }}
-          SHA: ${{ github.sha }}
-          TOKEN: ${{ github.token }}
-        run: |
-          git init -q --object-format=sha256 .
-          git remote add origin "$SERVER/$REPO"
-          auth=$(printf 'x-access-token:%s' "$TOKEN" | base64 -w0)
-          git -c http.extraheader="AUTHORIZATION: basic $auth" \
-            -c protocol.version=2 fetch --no-tags --depth=1 origin "$SHA"
-          git checkout -q --detach FETCH_HEAD
-          git log -1 --format='Checked out %H %s'
+      - uses: actions/checkout@v4
       # The mod API's source for the build horizon-mod.toml pins (what
       # `cargo horizon-mod` puts in .horizon/sdk/api), checked against the
       # SDK release's sdk.json, which also names the Rust the launcher builds
