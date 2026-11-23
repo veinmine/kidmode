@@ -1,0 +1,170 @@
+# Watches Horizon for Kid Mode, every Monday and on demand (Actions > Horizon watch > Run
+# workflow). No AI involved: it runs Horizon's own `cargo horizon-mod` and files issues.
+#
+# "Newest" is the current Nightly, whose SDK release (releases/download/nightly/sdk.json)
+# names its build; the pin is [native] horizon in horizon-mod.toml.
+#
+# 1. Compatibility (issue labelled horizon-compat): `cargo horizon-mod fits`, whether the
+#    pinned mod still fits the newest build unchanged, then a repin to the newest build
+#    (`cargo horizon-mod update`, in the runner only) with clippy and the tests. The issue
+#    is opened when any of it fails, and closed when it all passes again.
+# 2. Mod API changes (issue labelled horizon-api): when the newest build differs from the pin,
+#    `cargo horizon-mod sdk diff` from the pin to it (every item added, changed or removed,
+#    with Horizon's change notes) and what the repin changes in what Kid Mode uses. The
+#    issue stays open while the pin is behind, gets a comment when a newer build shows up,
+#    and closes once the pin is moved to the newest build.
+#
+# One open issue per label, updated in place: a run never opens a second one.
+name: Horizon watch
+
+on:
+  schedule:
+    - cron: "17 6 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: horizon-watch
+  cancel-in-progress: false
+
+jobs:
+  watch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    env:
+      GITHUB_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Find the newest Horizon build
+        id: builds
+        run: |
+          REPORT="$RUNNER_TEMP/report"
+          echo "REPORT=$REPORT" >> "$GITHUB_ENV"
+          mkdir -p "$REPORT"
+          pinned=$(sed -n 's/^horizon = "\([0-9a-f]\{40\}\)"$/\1/p' horizon-mod.toml)
+          curl -sSfL -o "$REPORT/newest-sdk.json" \
+            https://github.com/horizon-rust/horizon/releases/download/nightly/sdk.json
+          read -r newest date rust < <(python3 -c '
+          import json, sys
+          d = json.load(open(sys.argv[1]))
+          print(d["build"]["commit"], d["build"]["date"], d["toolchain"]["rust"])' "$REPORT/newest-sdk.json")
+          # The build the registry's checker is on, for the report only.
+          registry=$(curl -sSfL https://raw.githubusercontent.com/horizon-rust/horizon-mods/main/.github/horizon-rev) || registry=unknown
+          echo "pinned $pinned, newest $newest ($date, Rust $rust), registry $registry"
+          {
+            echo "pinned=$pinned"
+            echo "newest=$newest"
+            echo "date=$date"
+            echo "rust=$rust"
+            echo "registry=$registry"
+          } >> "$GITHUB_OUTPUT"
+
+      # The runner image has no Rust, so install rustup when it's missing.
+      - name: Install Rust (the newest SDK's)
+        run: |
+          if ! command -v rustup >/dev/null; then
+            curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs |
+              sh -s -- -y --no-modify-path --profile minimal --default-toolchain none
+            echo "$HOME/.cargo/bin" >> "$GITHUB_PATH"
+            export PATH="$HOME/.cargo/bin:$PATH"
+          fi
+          rustup toolchain install "${{ steps.builds.outputs.rust }}" --profile minimal --component clippy
+          rustup default "${{ steps.builds.outputs.rust }}"
+
+      # Horizon's own tool at the newest build, built once per build.
+      - name: Cache cargo-horizon-mod
+        id: tool-cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.horizon-tool
+          key: cargo-horizon-mod-${{ steps.builds.outputs.newest }}
+      - name: Build cargo-horizon-mod
+        if: steps.tool-cache.outputs.cache-hit != 'true'
+        run: |
+          src="$RUNNER_TEMP/horizon"
+          git init -q "$src"
+          git -C "$src" fetch -q --depth 1 https://github.com/horizon-rust/horizon "${{ steps.builds.outputs.newest }}"
+          git -C "$src" checkout -q FETCH_HEAD
+          cargo install --locked --path "$src/crates/cargo-horizon-mod" --root ~/.horizon-tool
+          rm -rf "$src"
+      - run: echo "$HOME/.horizon-tool/bin" >> "$GITHUB_PATH"
+
+      # Exit codes are recorded, not acted on: the last steps turn them into issues.
+      - name: Does the pinned mod fit the newest build?
+        id: fits
+        run: |
+          set +e
+          cargo horizon-mod fits --build "${{ steps.builds.outputs.newest }}" > "$REPORT/fits.txt" 2>&1
+          echo "code=$?" >> "$GITHUB_OUTPUT"
+          cat "$REPORT/fits.txt"
+
+      - name: What changed in the mod API since the pin
+        id: diff
+        if: steps.builds.outputs.pinned != steps.builds.outputs.newest
+        run: |
+          set +e
+          cargo horizon-mod sdk diff "${{ steps.builds.outputs.pinned }}" "${{ steps.builds.outputs.newest }}" > "$REPORT/sdk-diff.txt" 2>&1
+          echo "code=$?" >> "$GITHUB_OUTPUT"
+          head -c 20000 "$REPORT/sdk-diff.txt"
+
+      # In the runner only: nothing is committed.
+      - name: Repin to the newest build
+        id: update
+        if: steps.builds.outputs.pinned != steps.builds.outputs.newest
+        run: |
+          set +e
+          cargo horizon-mod update --horizon "${{ steps.builds.outputs.newest }}" > "$REPORT/update.txt" 2>&1
+          echo "code=$?" >> "$GITHUB_OUTPUT"
+          cat "$REPORT/update.txt"
+
+      # Against the build horizon-mod.toml now names: the newest when the repin worked, else
+      # the pin. Its API source goes where `cargo horizon-mod` would put it, as in ci.yml.
+      # Not --all: that would also check the SDK crates, which are path dependencies.
+      - name: Clippy and the tests
+        id: test
+        run: |
+          set +e
+          build=$(sed -n 's/^horizon = "\([0-9a-f]\{40\}\)"$/\1/p' horizon-mod.toml)
+          echo "build=$build" >> "$GITHUB_OUTPUT"
+          (
+            set -e
+            base="https://github.com/horizon-rust/horizon/releases/download/sdk-$build"
+            curl -sSfL -o "$RUNNER_TEMP/sdk.json" "$base/sdk.json"
+            curl -sSfL -o "$RUNNER_TEMP/api-source.tar.xz" "$base/api-source.tar.xz"
+            want=$(python3 -c 'import json, sys; print(json.load(open(sys.argv[1]))["assets"]["api-source.tar.xz"]["sha256"])' "$RUNNER_TEMP/sdk.json")
+            echo "$want  $RUNNER_TEMP/api-source.tar.xz" | sha256sum -c -
+            rm -rf .horizon/sdk/api
+            mkdir -p .horizon/sdk/api
+            tar xJf "$RUNNER_TEMP/api-source.tar.xz" -C .horizon/sdk/api
+            echo "Testing against Horizon $build"
+            cargo clippy --all-targets -- -D warnings
+            cargo test
+          ) > "$REPORT/test.txt" 2>&1
+          echo "code=$?" >> "$GITHUB_OUTPUT"
+          tail -n 80 "$REPORT/test.txt"
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: horizon-watch-report
+          path: ${{ runner.temp }}/report
+          if-no-files-found: ignore
+
+      - name: File or close the issues
+        if: always() && steps.builds.outcome == 'success'
+        env:
+          PINNED: ${{ steps.builds.outputs.pinned }}
+          NEWEST: ${{ steps.builds.outputs.newest }}
+          DATE: ${{ steps.builds.outputs.date }}
+          REGISTRY: ${{ steps.builds.outputs.registry }}
+          FITS: ${{ steps.fits.outputs.code }}
+          DIFF: ${{ steps.diff.outputs.code }}
+          UPDATE: ${{ steps.update.outputs.code }}
+          TEST: ${{ steps.test.outputs.code }}
+          TESTED: ${{ steps.test.outputs.build }}
+          RUN: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: python3 .github/scripts/horizon_watch.py
