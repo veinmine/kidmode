@@ -1,0 +1,16 @@
+# What the Horizon watch looks for in each new mod API (.github/workflows/horizon-watch.yml).
+# One rule per line: a case-insensitive regular expression matched against the id of every
+# item added, changed or removed since the pin (hook:…, type:…, handle:…, fn:…), then `#` and
+# the Kid Mode feature it's for. A match opens the horizon-api issue; other API changes don't.
+# Most rules are the gaps in docs/missing.md: drop a rule once its feature is back.
+
+sun_?burn|daylight|burns?_in                     # undead catching fire in daylight
+flee|avoid_sun|panic                             # undead looking for shade; animals' fire panic
+mob_effect.*(source|by|applier)|effect_source    # the Elder Guardian's curse (who applies an effect)
+hook:mob_effect_applicable                       # the Elder Guardian's curse
+dragon.*(phase|target|charge|breath|strafe|attack|swoop)  # the Ender Dragon charging and breathing at you
+wither.*(shoot|skull|ranged|attack|volley)       # the Wither's idle volleys
+leash                                            # leads on monsters and neutral mobs
+unshaded|translucent|full_?bright|quad.*(alpha|colou?r)|alpha.*quad  # the taming bubble: fading, pure white
+wolf.*(anger|angry)|anger|ocelot.*trust|trusting # wolf and ocelot hints on the client
+replaceable                                      # mob engine functions that can take a mixin
