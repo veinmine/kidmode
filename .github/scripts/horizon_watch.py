@@ -6,13 +6,15 @@ UPDATE, TEST, TESTED, RUN) and the outputs in $REPORT, then keeps one open issue
 
 - horizon-compat: opened or updated while Kid Mode doesn't fit, build or pass its tests on
   the newest Horizon build; closed when it does again.
-- horizon-api: opened or updated while the newest build's mod API differs from the pinned
-  build's; closed once the pin has caught up.
+- horizon-api: opened or updated while the newest build changes an item Kid Mode uses, or
+  adds, changes or removes one that a rule in .github/horizon-watchlist.txt matches; other
+  API changes (nearly every Nightly has some) are left out. Closed when none is left.
 
-An open issue is edited in place, and gets a comment only when a newer Horizon build shows
-up, so a weekly run doesn't notify about the same thing twice. The standard library only.
+An open issue is edited in place and gets a comment only when what it reports changes
+(horizon-compat: a newer build still fails), so a weekly run doesn't notify twice. The standard library only.
 """
 
+import hashlib
 import json
 import os
 import re
@@ -31,6 +33,28 @@ KEY = re.compile(r"<!-- horizon-watch-key: (\S+) -->")
 
 COMPAT = "horizon-compat"
 API_LABEL = "horizon-api"
+WATCHLIST = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "horizon-watchlist.txt")
+# What `cargo horizon-mod update` prints when nothing the mod uses changed.
+UNCHANGED = re.compile(r"none of the \d+ items it uses changed")
+# An item line of `cargo horizon-mod sdk diff`: `- hook:camera_roll (added)`.
+ITEM = re.compile(r"^- (\S+) \((added|changed|removed)\)", re.M)
+
+
+def watch_hits(diff_text):
+    """The diff's items a watchlist rule matches, as (item, change, feature)."""
+    rules = []
+    with open(WATCHLIST, encoding="utf-8") as f:
+        for line in f:
+            pattern, _, feature = line.partition("#")
+            if pattern.strip():
+                rules.append((re.compile(pattern.strip(), re.I), feature.strip()))
+    hits = []
+    for item, change in ITEM.findall(diff_text):
+        for rule, feature in rules:
+            if rule.search(item):
+                hits.append((item, change, feature))
+                break
+    return hits
 
 
 def call(method, path, data=None):
@@ -170,32 +194,38 @@ def main():
             f"Horizon {name} is out and the checks still fail on it; the description is updated ([run]({run})).",
         )
 
-    # 2. Mod API changes since the pin.
+    # 2. Mod API changes that matter to Kid Mode. The API changes almost every Nightly, so the
+    # issue is only for changes to items Kid Mode uses, or additions the watchlist asks for.
     old_hash, new_hash = surface_hash(pinned), surface_hash(newest)
-    if not behind or (old_hash and old_hash == new_hash):
-        close(API_LABEL, f"The pin's mod API is the newest build's ({name}): nothing left to review ([run]({run})).")
+    update_text = output("update.txt")
+    used_changed = behind and update == "0" and not UNCHANGED.search(update_text)
+    hits = watch_hits(output("sdk-diff.txt")) if behind and diff == "0" else []
+    if not behind or (old_hash and old_hash == new_hash) or not (used_changed or hits):
+        close(API_LABEL, f"Nothing Kid Mode uses or watches for differs between the pin and {name} ([run]({run})).")
         return
+    found = "".join(f"- `{item}` ({change}): {feature}\n" for item, change, feature in hits)
     body = (
-        f"Horizon has newer builds than the one Kid Mode is pinned to, and their mod API differs "
-        f"(surface `{old_hash or '?'}` → `{new_hash or '?'}`). Filed by the Horizon watch, updated on "
-        f"each run, closed once the pin is moved to the newest build (`cargo horizon-mod update`, "
-        f"then commit `horizon-mod.toml`).\n\n{head}\n"
+        f"Horizon's newest build changes something Kid Mode cares about. Filed by the Horizon watch, "
+        f"updated on each run, closed once nothing it reports is left (move the pin with "
+        f"`cargo horizon-mod update`, or drop a rule from `.github/horizon-watchlist.txt`).\n\n{head}\n"
+        f"### On the watchlist\n\n{found or 'Nothing.'}\n\n"
         f"### What a repin changes in what Kid Mode uses\n\n"
-        f"From `cargo horizon-mod update --horizon {newest[:7]}` (run in CI only, nothing committed):\n\n"
+        f"From `cargo horizon-mod update --horizon {newest[:7]}` (run in CI only, nothing committed)"
+        f"{'' if used_changed else ': nothing it uses changed'}:\n\n"
         f"{block(output('update.txt', 150))}\n\n"
         f"### Everything that changed in the mod API since the pin\n\n"
-        f"From `cargo horizon-mod sdk diff {pinned[:7]} {newest[:7]}`"
-        f"{'' if diff in ('0', '') else f' (exit {diff})'}:\n\n"
+        f"From `cargo horizon-mod sdk diff {pinned[:7]} {newest[:7]}`:\n\n"
         f"<details><summary>The diff</summary>\n\n{block(output('sdk-diff.txt'))}\n\n</details>\n"
     )
+    # Comment only when what's reported changes, not on every new Nightly.
+    key = hashlib.sha256(json.dumps([hits, used_changed and update_text]).encode()).hexdigest()[:16]
     upsert(
         API_LABEL,
-        f"Horizon mod API changed since the pinned build (newest: {date})",
+        f"Horizon mod API: changes that matter to Kid Mode (newest: {date})",
         body,
-        newest,
-        f"Horizon {name} is out: the description now compares the pin with it ([run]({run})).",
+        key,
+        f"Horizon {name} changes what's reported: the description is updated ([run]({run})).",
     )
-
 
 if __name__ == "__main__":
     main()

@@ -8,11 +8,12 @@
 #    pinned mod still fits the newest build unchanged, then a repin to the newest build
 #    (`cargo horizon-mod update`, in the runner only) with clippy and the tests. The issue
 #    is opened when any of it fails, and closed when it all passes again.
-# 2. Mod API changes (issue labelled horizon-api): when the newest build differs from the pin,
-#    `cargo horizon-mod sdk diff` from the pin to it (every item added, changed or removed,
-#    with Horizon's change notes) and what the repin changes in what Kid Mode uses. The
-#    issue stays open while the pin is behind, gets a comment when a newer build shows up,
-#    and closes once the pin is moved to the newest build.
+# 2. Mod API changes that matter (issue labelled horizon-api): nearly every Nightly changes
+#    the API, so only two kinds count: an item Kid Mode uses changed (the report of
+#    `cargo horizon-mod update`), or an item matching a rule in .github/horizon-watchlist.txt
+#    (mostly the gaps in docs/missing.md) was added, changed or removed (`cargo horizon-mod
+#    sdk diff` from the pin). The issue gets a comment when that list changes, and closes
+#    when it's empty. The full diff is always in the run's artifact.
 #
 # One open issue per label, updated in place: a run never opens a second one.
 name: Horizon watch
